@@ -1,0 +1,3883 @@
+{
+  "schema_version": 1,
+  "aiter_sha": "868ccf62a0bcad3aa47f92728340ccb37ed4fb39",
+  "scope": "git-tracked aiter/ and csrc/ source files with gfx950 in path or text",
+  "interpretation": "source hints only; comments, guards and dead paths are not dispatch evidence",
+  "counts": {
+    "total": 319,
+    "python": 203,
+    "native": 116,
+    "path_mentions_gfx950": 63
+  },
+  "files": [
+    {
+      "path": "aiter/__init__.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        84,
+        85
+      ]
+    },
+    {
+      "path": "aiter/aot/flydsl/chunk_gdn_h.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        21,
+        48
+      ]
+    },
+    {
+      "path": "aiter/aot/flydsl/common.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        56,
+        60
+      ]
+    },
+    {
+      "path": "aiter/aot/flydsl/conv.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        53,
+        63,
+        81
+      ]
+    },
+    {
+      "path": "aiter/aot/flydsl/fhmoe.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        172,
+        173
+      ]
+    },
+    {
+      "path": "aiter/aot/flydsl/fmha_fp8.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        6,
+        54,
+        93,
+        112,
+        180,
+        235,
+        253
+      ]
+    },
+    {
+      "path": "aiter/aot/flydsl/gemm.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        14,
+        17,
+        67,
+        72,
+        112,
+        306,
+        308,
+        384,
+        893
+      ]
+    },
+    {
+      "path": "aiter/aot/flydsl/mega_moe.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        355,
+        418
+      ]
+    },
+    {
+      "path": "aiter/aot/flydsl/moe.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        22,
+        65
+      ]
+    },
+    {
+      "path": "aiter/aot/flydsl/mxfp4_moe.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        447,
+        448,
+        449,
+        450
+      ]
+    },
+    {
+      "path": "aiter/dist/device_communicators/custom_all_reduce.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        307
+      ]
+    },
+    {
+      "path": "aiter/fhmoe.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        51,
+        53
+      ]
+    },
+    {
+      "path": "aiter/fused_moe.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        90,
+        793,
+        1269,
+        1271,
+        1427,
+        1428,
+        1814,
+        2910,
+        3333,
+        3441,
+        5181
+      ]
+    },
+    {
+      "path": "aiter/fused_moe_dp_shared_expert.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        347
+      ]
+    },
+    {
+      "path": "aiter/jit/core.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        226,
+        451,
+        696
+      ]
+    },
+    {
+      "path": "aiter/jit/utils/build_targets.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        18,
+        41
+      ]
+    },
+    {
+      "path": "aiter/jit/utils/chip_info.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        57,
+        79,
+        178,
+        183,
+        539
+      ]
+    },
+    {
+      "path": "aiter/jit/utils/mha_recipes.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        4,
+        7
+      ]
+    },
+    {
+      "path": "aiter/mla.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        20,
+        364,
+        399,
+        402,
+        446,
+        453,
+        742,
+        776,
+        791,
+        797,
+        818,
+        823,
+        830,
+        889,
+        896,
+        904,
+        916,
+        1159,
+        1893,
+        1900,
+        1933
+      ]
+    },
+    {
+      "path": "aiter/ops/attention.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        1101,
+        1112,
+        1172,
+        1179,
+        1207,
+        1217,
+        1238,
+        1245,
+        1252,
+        1657,
+        1664,
+        1670,
+        1685,
+        1769,
+        1837
+      ]
+    },
+    {
+      "path": "aiter/ops/batched_gemm_op_a8w8.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        156,
+        336
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/__init__.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        45,
+        49
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/batched_gemm_mxfp4.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        6,
+        42,
+        73,
+        75,
+        77
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/causal_conv1d_update_kernels.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        75
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/comm_fused_moe_host.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        20,
+        25,
+        29
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/conv3d_policy.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        14,
+        31,
+        63
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/conv_kernels.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        18,
+        30,
+        46,
+        493
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/fmha_kernels.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        7,
+        223,
+        241,
+        250,
+        330,
+        348,
+        447,
+        459,
+        477
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/fp8_mqa_logits_kernels.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        6,
+        103,
+        156,
+        217,
+        218,
+        322,
+        354,
+        356,
+        363,
+        369,
+        382,
+        399,
+        470,
+        497,
+        521,
+        522,
+        526
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/gather_kv_b_proj.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        4,
+        8,
+        192,
+        193,
+        269
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/gemm_a16w16_policy.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        13,
+        140
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/gemm_a8w8_bpreshuffle_8wave.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        4
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/gemm_kernels.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        20,
+        167,
+        169
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/gemm_tune/flydsl_gemm_a8w8_bpreshuffle_common.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        9,
+        10,
+        234,
+        267,
+        273,
+        395,
+        399,
+        432,
+        510,
+        517
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/hstu_attention.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        673
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/comm_fused_moe/gfx950/a8w4/__init__.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        2
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/comm_fused_moe/gfx950/a8w4/atomic.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": true,
+      "line_hits": []
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/comm_fused_moe/gfx950/a8w4/collectives.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": true,
+      "line_hits": []
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/comm_fused_moe/gfx950/a8w4/config.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        2,
+        44
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/comm_fused_moe/gfx950/a8w4/megakernel.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": true,
+      "line_hits": []
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/comm_fused_moe/gfx950/a8w4/producer.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": true,
+      "line_hits": []
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/comm_fused_moe/gfx950/a8w4/window.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": true,
+      "line_hits": []
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/conv/conv3d_gfx950_utils.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        16
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/conv/conv3d_im2col.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        11
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/conv/conv3d_implicit_gfx950.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        17
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/conv/conv3d_transpose.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        14
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/flash_attn_func_fp8_gfx950.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        5,
+        18,
+        21,
+        47,
+        101,
+        137,
+        146,
+        245,
+        246,
+        297,
+        544,
+        546,
+        605
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/fmha_gfx950/__init__.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": true,
+      "line_hits": []
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/fmha_gfx950/flash_attn_fp8_gfx950.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        5,
+        15,
+        19,
+        20,
+        21,
+        26,
+        27,
+        56,
+        59,
+        61
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/fmha_gfx950/op_combine.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        15
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/fmha_gfx950/op_epilog.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        16
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/fmha_gfx950/op_gemm.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        14
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/fmha_gfx950/op_lds.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        12
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/fmha_gfx950/op_softmax.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        14
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/fmha_gfx950/pipeline.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        28,
+        353,
+        454,
+        538,
+        541,
+        677
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/fused_compress_attn_common.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        98
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/gather_gemm_8wave.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        4
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/gdr_prefill/chunk_gated_delta_h.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        41
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/gemm_a16w16_gfx950.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        16,
+        17,
+        18,
+        37,
+        72,
+        92,
+        111,
+        123,
+        134,
+        168,
+        179,
+        264,
+        280,
+        294,
+        327,
+        481,
+        496,
+        531,
+        802,
+        817,
+        852,
+        1228,
+        1236,
+        1272,
+        1278,
+        1280,
+        1283,
+        1310,
+        1321,
+        1345,
+        1440,
+        1443,
+        1444,
+        1448,
+        1450,
+        1457,
+        1458,
+        1461,
+        1463,
+        1469,
+        1470,
+        1473,
+        1475,
+        1481,
+        1482,
+        1485,
+        1487,
+        1540,
+        1558
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/gemm_a16w16_gfx950_utils.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        18,
+        19,
+        317
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/gemm_a8w8_8wave.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        5
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/hstu/hstu_attention_bwd.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        87,
+        89
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/hstu/hstu_attention_common.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        89
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/hstu/hstu_attention_fwd.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        27,
+        80,
+        82,
+        199,
+        294
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/mixed_moe_gemm_2stage_common.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        17,
+        297
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/moe_2stage_a16wmix/__init__.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        41
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/moe_2stage_a16wmix/gemm1.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        150,
+        233
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/moe_2stage_a16wmix/gemm2.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        28,
+        79,
+        367
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/moe_2stage_a16wmix/utils.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        289,
+        396,
+        422,
+        457
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/moe_fused_route_quant_scatter.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        143,
+        148,
+        150,
+        212,
+        821
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/mqa_logits/fp8_mqa_logits.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        4,
+        301,
+        320,
+        707,
+        768
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/mqa_logits/pa_mqa_logits_fp4.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        692
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/mqa_logits/pa_mqa_logits_fp4_prefill.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        893,
+        1052
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/mxfp4_gemm1.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        1101
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/pa_decode_kernel.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        6,
+        8,
+        10,
+        88,
+        103,
+        105,
+        213,
+        220,
+        222
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/preshuffle_gemm.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        198,
+        199,
+        200,
+        207,
+        231
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/qk_norm_rope_quant.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        6,
+        84
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/quant_utils.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        70,
+        212
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/quick_allreduce_int4.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        4,
+        58,
+        269
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/silu_and_mul_fq.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        46,
+        80
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/topk/radix_topk_one_block.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        27,
+        41,
+        44
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/topk/topk_per_row_radix_stream.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        169,
+        172
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/kernels/topk/topk_per_row_small_k.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        118
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/linear_attention_kernels.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        193,
+        451
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/linear_attention_prefill_kernels.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        795
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/mla_reduce_kernels.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        43,
+        240
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/moe_kernels.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        468
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/pa_decode.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        4,
+        7,
+        388,
+        392
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/quick_allreduce_int4.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        4,
+        28
+      ]
+    },
+    {
+      "path": "aiter/ops/flydsl/topk/topk_per_row.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        191
+      ]
+    },
+    {
+      "path": "aiter/ops/gdr_decode_packed_bf16.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        62,
+        63
+      ]
+    },
+    {
+      "path": "aiter/ops/gemm_op_a4w6.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        4
+      ]
+    },
+    {
+      "path": "aiter/ops/gemm_op_a6w4.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        4,
+        398
+      ]
+    },
+    {
+      "path": "aiter/ops/gemm_op_a6w6.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        74,
+        77,
+        81,
+        82,
+        85,
+        90,
+        91,
+        120,
+        895,
+        903,
+        958,
+        960,
+        977,
+        1005,
+        1009,
+        1034
+      ]
+    },
+    {
+      "path": "aiter/ops/gemm_op_a8w8.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        43,
+        806,
+        908,
+        910,
+        1340,
+        1351
+      ]
+    },
+    {
+      "path": "aiter/ops/inverse_rope_group_quant.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        113
+      ]
+    },
+    {
+      "path": "aiter/ops/mha.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        421,
+        457,
+        504,
+        1899,
+        1902,
+        1920,
+        1981,
+        2056,
+        2064,
+        2069,
+        2165,
+        2477,
+        2478,
+        2509,
+        2516,
+        2517,
+        2530,
+        2955,
+        2958,
+        2977,
+        2989,
+        3044,
+        3051,
+        3069,
+        3304,
+        3305,
+        3349,
+        3350,
+        3351
+      ]
+    },
+    {
+      "path": "aiter/ops/mha_v4.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        211,
+        1082
+      ]
+    },
+    {
+      "path": "aiter/ops/mha_v4_quant.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        41
+      ]
+    },
+    {
+      "path": "aiter/ops/mhc.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        211,
+        366,
+        537,
+        736,
+        737,
+        809,
+        889,
+        939
+      ]
+    },
+    {
+      "path": "aiter/ops/opus/__init__.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        12,
+        13
+      ]
+    },
+    {
+      "path": "aiter/ops/opus/_arch.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        45,
+        47,
+        60
+      ]
+    },
+    {
+      "path": "aiter/ops/opus/dispatch.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        21,
+        49,
+        183
+      ]
+    },
+    {
+      "path": "aiter/ops/opus/gemm_op_a16w16.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        161,
+        162,
+        168,
+        169,
+        170,
+        190,
+        192
+      ]
+    },
+    {
+      "path": "aiter/ops/opus/launch_plan.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        25,
+        143,
+        149,
+        154,
+        377,
+        378
+      ]
+    },
+    {
+      "path": "aiter/ops/opus/moe_stage2_a8w4.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        12,
+        271,
+        514,
+        515,
+        691
+      ]
+    },
+    {
+      "path": "aiter/ops/opus/pa_mqa_logits_mxfp4.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        10,
+        42,
+        54,
+        81,
+        131,
+        136,
+        402,
+        403,
+        404,
+        411,
+        412,
+        437,
+        443,
+        468,
+        473,
+        474,
+        478,
+        545,
+        547,
+        554,
+        557,
+        614,
+        615,
+        631,
+        647,
+        661,
+        683,
+        694,
+        727,
+        729,
+        805
+      ]
+    },
+    {
+      "path": "aiter/ops/opus/pa_mqa_logits_opus.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        4,
+        128,
+        130,
+        131,
+        184,
+        231
+      ]
+    },
+    {
+      "path": "aiter/ops/opus/policy.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        7,
+        32,
+        145,
+        153,
+        335,
+        351,
+        366,
+        576
+      ]
+    },
+    {
+      "path": "aiter/ops/pa_sparse_prefill_opus.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        14,
+        39,
+        42,
+        45,
+        52,
+        53,
+        58,
+        116,
+        143,
+        187,
+        289,
+        329,
+        332
+      ]
+    },
+    {
+      "path": "aiter/ops/quant.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        975
+      ]
+    },
+    {
+      "path": "aiter/ops/topk.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        505
+      ]
+    },
+    {
+      "path": "aiter/ops/topk_select.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        63,
+        276
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/_gluon_kernels/gfx1250/attention/fp8_mqa_logits.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        8
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/_gluon_kernels/gfx1250/gemm/basic/gemm_mxfp4.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        190
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/_gluon_kernels/gfx950/attention/fp8_mqa_logits.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": true,
+      "line_hits": []
+    },
+    {
+      "path": "aiter/ops/triton/_gluon_kernels/gfx950/attention/mha.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": true,
+      "line_hits": []
+    },
+    {
+      "path": "aiter/ops/triton/_gluon_kernels/gfx950/attention/sparse_attention_dsv4_bwd.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        4,
+        392
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/_gluon_kernels/gfx950/attention/sparse_mla.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        4,
+        606
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/_gluon_kernels/gfx950/attention/unified_attention.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": true,
+      "line_hits": []
+    },
+    {
+      "path": "aiter/ops/triton/_gluon_kernels/gfx950/chunk_delta_attn/flash_kda_k1.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": true,
+      "line_hits": []
+    },
+    {
+      "path": "aiter/ops/triton/_gluon_kernels/gfx950/chunk_delta_attn/flash_kda_k2.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": true,
+      "line_hits": []
+    },
+    {
+      "path": "aiter/ops/triton/_gluon_kernels/gfx950/gemm/basic/gemm_a8w8.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        4
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/_gluon_kernels/gfx950/gemm/basic/gemm_a8w8_blockscale.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        4
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/_gluon_kernels/gfx950/gemm/basic/gemm_afp4wfp4.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        4
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/_triton_kernels/attention/mha.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        230
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/_triton_kernels/attention/sparse_attention_dsv4.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        17,
+        22
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/_triton_kernels/attention/sparse_attention_dsv4_bwd.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        4,
+        7
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/_triton_kernels/chunk_delta_attn/flash_kda.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        96,
+        1119,
+        1255
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/_triton_kernels/flash_attn_triton_amd/bwd.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        124,
+        412,
+        3002
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/_triton_kernels/flash_attn_triton_amd/fwd_prefill.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        47,
+        107
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/_triton_kernels/flash_attn_triton_amd/utils.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        56,
+        69
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/_triton_kernels/gemm/basic/gemm_a8w8_blockscale_group32.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        48
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/_triton_kernels/gemm/fused/fused_gemm_a8w8_blockscale_mul_add.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        346,
+        352,
+        354
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/_triton_kernels/gemm/fused/fused_gemm_afp4wfp4_mul_add.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        624,
+        626
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/_triton_kernels/moe/moe_op_gemm_a8w8.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        186
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/_triton_kernels/quant/quant.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        392,
+        626
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/_triton_kernels/quant/quant_mxfp8.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        14
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/attention/chunked_pa_prefill.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        22,
+        23,
+        146
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/attention/fav3_sage_attention_mxfp4_wrapper.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        19,
+        31
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/attention/fp8_mqa_logits.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        20,
+        21,
+        70,
+        73,
+        75,
+        226,
+        241,
+        255,
+        262
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/attention/mha.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        14,
+        17,
+        40,
+        693,
+        1037,
+        1392
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/attention/mla.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        117
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/attention/pa_decode_sparse.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        15,
+        16,
+        18,
+        19,
+        118,
+        121,
+        153,
+        158,
+        159,
+        174,
+        193,
+        451,
+        476,
+        492,
+        501,
+        503,
+        691,
+        770
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/attention/pa_mqa_logits.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        43,
+        290
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/attention/pa_prefill_sparse.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        11,
+        17,
+        55,
+        173,
+        252
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/attention/sparse_attention_dsv4_bwd.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        4,
+        35,
+        45,
+        301,
+        302,
+        493
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/attention/sparse_mla.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        8,
+        9,
+        11,
+        12,
+        148,
+        490,
+        527,
+        611,
+        692
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/attention/unified_attention.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        42,
+        44,
+        45,
+        48,
+        57,
+        59,
+        60,
+        127,
+        128,
+        136,
+        137,
+        155,
+        158,
+        344,
+        345,
+        357,
+        402,
+        403,
+        472,
+        473,
+        488,
+        489,
+        955,
+        966,
+        1000,
+        1008,
+        1068,
+        1073,
+        1082,
+        1105
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/fusions/attn_res.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        63,
+        168
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/fusions/fused_clamp_act_mul.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        39,
+        53
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/gemm/basic/gemm_a8w8.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        25,
+        98,
+        247
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/gemm/basic/gemm_a8w8_blockscale.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        31,
+        147,
+        148,
+        152,
+        303,
+        307
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/gemm/basic/gemm_a8w8_blockscale_group32.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        86,
+        127
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/gemm/basic/gemm_a8wfp4.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        86
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/gemm/basic/gemm_afp4wfp4.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        32,
+        175,
+        176,
+        179,
+        510
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/gemm/fused/fused_gemm_a8w8_blockscale_mul_add.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        138
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/gluon/mla_gluon.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        843,
+        888,
+        889,
+        911
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/gluon/pa_decode_gluon.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        87,
+        4792
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/moe/moe_gemm_mxfp8.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        15
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/moe/moe_op_gemm_a16w4.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        173
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/moe/moe_op_gemm_a8w4.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        138,
+        193
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/normalization/rmsnorm.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        34,
+        56,
+        58,
+        222,
+        223
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/quant/mxfp6_fmha_pack.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        3,
+        37,
+        244
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/quant/quant.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        201,
+        217,
+        246,
+        247
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/quant/quant_fp8_blockwise.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        72
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/quant/quant_mxfp8.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        42,
+        43,
+        55,
+        67,
+        70,
+        76,
+        149,
+        150,
+        158,
+        160,
+        164
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/utils/_triton/arch_info.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        16,
+        20,
+        24,
+        28,
+        35
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/utils/device_info.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        26
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/utils/gemm_config_utils.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        292
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/utils/shuffle.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        107,
+        108,
+        109,
+        114,
+        140,
+        141,
+        147,
+        148,
+        153,
+        176,
+        179,
+        183,
+        194,
+        195,
+        210
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/utils/types.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        16
+      ]
+    },
+    {
+      "path": "aiter/ops/triton/utils/unified_attention_utils.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        191
+      ]
+    },
+    {
+      "path": "aiter/tuned_gemm.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        245
+      ]
+    },
+    {
+      "path": "aiter/utility/dtypes.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        13
+      ]
+    },
+    {
+      "path": "aiter/utility/fp4_utils.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        80
+      ]
+    },
+    {
+      "path": "csrc/ck_gemm_a4w4_blockscale/gemm_a4w4_blockscale_tune.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        233
+      ]
+    },
+    {
+      "path": "csrc/ck_gemm_a8w8_blockscale/gemm_a8w8_blockscale_cktile_instance.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        180,
+        181
+      ]
+    },
+    {
+      "path": "csrc/ck_gemm_moe_2stages_codegen/gemm_moe_ck2stages_common.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        118,
+        151,
+        223,
+        225,
+        234,
+        270,
+        279,
+        352,
+        354,
+        386,
+        387,
+        402,
+        403,
+        465,
+        466,
+        481,
+        482
+      ]
+    },
+    {
+      "path": "csrc/ck_gemm_moe_2stages_codegen/gemm_moe_tune.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        100,
+        1262,
+        2696,
+        2881,
+        4050,
+        4051,
+        4053,
+        4056,
+        4990
+      ]
+    },
+    {
+      "path": "csrc/ck_gemm_moe_2stages_codegen/gen_instances.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        74,
+        372,
+        433,
+        434,
+        776,
+        777,
+        778,
+        788,
+        789,
+        790
+      ]
+    },
+    {
+      "path": "csrc/ck_tile_gemm_moe_2stages/gen_instances.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        240,
+        241,
+        616
+      ]
+    },
+    {
+      "path": "csrc/ck_tile_gemm_moe_2stages/moe_cktile2stages_common.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        130,
+        142,
+        179,
+        208,
+        220,
+        231,
+        246,
+        248,
+        250,
+        257,
+        259,
+        261,
+        266,
+        337,
+        463,
+        519,
+        521,
+        523,
+        544,
+        545,
+        549,
+        550,
+        554,
+        555,
+        593,
+        594,
+        598,
+        599,
+        603,
+        604
+      ]
+    },
+    {
+      "path": "csrc/cktile_gemm_a8w8_bpreshuffle/gemm_a8w8_bpreshuffle_cktile_common.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        504
+      ]
+    },
+    {
+      "path": "csrc/cpp_itfs/mha_bwd.cu",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        121,
+        402,
+        446,
+        473,
+        482,
+        483
+      ]
+    },
+    {
+      "path": "csrc/cpp_itfs/mha_fwd.cu",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        47,
+        186,
+        224,
+        229,
+        230,
+        273
+      ]
+    },
+    {
+      "path": "csrc/cpp_itfs/mha_fwd_batch_prefill.cu",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        54,
+        68,
+        90,
+        91
+      ]
+    },
+    {
+      "path": "csrc/cpp_itfs/pa/pa.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        30,
+        413,
+        730
+      ]
+    },
+    {
+      "path": "csrc/cpp_itfs/pa/pa_common.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        85
+      ]
+    },
+    {
+      "path": "csrc/cpp_itfs/pa/pa_kernels.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        358,
+        744,
+        1533,
+        1578,
+        2075,
+        2118
+      ]
+    },
+    {
+      "path": "csrc/cpp_itfs/pa/pa_ragged.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        22
+      ]
+    },
+    {
+      "path": "csrc/cpp_itfs/pa/pa_v1.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        22
+      ]
+    },
+    {
+      "path": "csrc/cpp_itfs/pa_gluon_aot/pa_attention_kernel_test.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        662
+      ]
+    },
+    {
+      "path": "csrc/cpp_itfs/pa_gluon_aot/pa_decode_gluon_aot.cpp",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        148,
+        150
+      ]
+    },
+    {
+      "path": "csrc/cpp_itfs/pa_gluon_aot/pa_decode_gluon_aot.h",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        63
+      ]
+    },
+    {
+      "path": "csrc/cpp_itfs/pa_gluon_aot/pa_decode_gluon_aot.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        554
+      ]
+    },
+    {
+      "path": "csrc/cpp_itfs/sampling/vec_dtypes.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        29
+      ]
+    },
+    {
+      "path": "csrc/cpp_itfs/utils.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        154
+      ]
+    },
+    {
+      "path": "csrc/flydsl_conv3d/conv3d_tune.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        46,
+        435
+      ]
+    },
+    {
+      "path": "csrc/gemm_a16w16/gemm_a16w16_tune.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        616
+      ]
+    },
+    {
+      "path": "csrc/gemm_a4w6/gemm_a4w6_tune.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        4
+      ]
+    },
+    {
+      "path": "csrc/gemm_a6w4/gemm_a6w4_tune.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        4
+      ]
+    },
+    {
+      "path": "csrc/gemm_a6w6/gemm_a6w6_tune.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        3,
+        561,
+        562,
+        629
+      ]
+    },
+    {
+      "path": "csrc/gemm_mixed_mxfp/gemm_mixed_mxfp_tune.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        4,
+        141,
+        720,
+        722,
+        802
+      ]
+    },
+    {
+      "path": "csrc/include/aiter_enum.h",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        98,
+        100
+      ]
+    },
+    {
+      "path": "csrc/include/aiter_opus_plus.h",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        26,
+        53,
+        98,
+        141,
+        143,
+        227
+      ]
+    },
+    {
+      "path": "csrc/include/attention_common.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        76,
+        622,
+        646,
+        840,
+        884
+      ]
+    },
+    {
+      "path": "csrc/include/ck_tile/vec_convert.h",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        74,
+        85,
+        96
+      ]
+    },
+    {
+      "path": "csrc/include/custom_all_reduce.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        5382
+      ]
+    },
+    {
+      "path": "csrc/include/fmha_fwd_bf16_opus_launch.h",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        4,
+        281
+      ]
+    },
+    {
+      "path": "csrc/include/fmha_fwd_hd128_bf16_opus.h",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        4,
+        8,
+        24,
+        28
+      ]
+    },
+    {
+      "path": "csrc/include/fmha_fwd_hd128_bf16_opus_kernel.hpp",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        1
+      ]
+    },
+    {
+      "path": "csrc/include/fmha_fwd_hd192_v128_bf16_opus.h",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        5,
+        10,
+        18,
+        22
+      ]
+    },
+    {
+      "path": "csrc/include/fmha_fwd_hd192_v128_bf16_opus_kernel.hpp",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        1
+      ]
+    },
+    {
+      "path": "csrc/include/gemm_dispatch_utils.h",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        25
+      ]
+    },
+    {
+      "path": "csrc/include/inverse_rope_group_quant.h",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        23
+      ]
+    },
+    {
+      "path": "csrc/include/mla_v4_prefill_opus.h",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        4,
+        30,
+        33,
+        75,
+        334,
+        433,
+        485,
+        486,
+        505,
+        538
+      ]
+    },
+    {
+      "path": "csrc/include/mx_quant_utils.h",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        59
+      ]
+    },
+    {
+      "path": "csrc/include/opus/opus.hpp",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        1055,
+        1069,
+        1152,
+        1166,
+        1208,
+        1209,
+        1228,
+        1237,
+        1362,
+        1558,
+        1566,
+        1598,
+        1735,
+        1758,
+        1759,
+        1760,
+        1761,
+        1762,
+        1767,
+        1772,
+        1777,
+        1876,
+        1882,
+        1892,
+        2186,
+        2206,
+        3034,
+        3076,
+        3106,
+        3124,
+        3138,
+        3145,
+        3183
+      ]
+    },
+    {
+      "path": "csrc/include/pa_mqa_logits_mxfp4_gfx1250_opus.h",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        6,
+        7,
+        8,
+        9,
+        10,
+        13,
+        162,
+        326,
+        665
+      ]
+    },
+    {
+      "path": "csrc/include/pa_mqa_logits_mxfp4_opus.h",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        4,
+        136,
+        139,
+        722
+      ]
+    },
+    {
+      "path": "csrc/include/py_itfs_common.h",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        28
+      ]
+    },
+    {
+      "path": "csrc/include/rocm_ops.hpp",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        1485,
+        1486,
+        1509,
+        1510,
+        2747
+      ]
+    },
+    {
+      "path": "csrc/include/topk_gating_kernels.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        50,
+        58,
+        64,
+        1330,
+        1446
+      ]
+    },
+    {
+      "path": "csrc/include/torch/fmha_fwd_bf16_opus.h",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        4,
+        15
+      ]
+    },
+    {
+      "path": "csrc/kernels/activation_kernels.cu",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        101,
+        278,
+        455,
+        573,
+        827,
+        1878
+      ]
+    },
+    {
+      "path": "csrc/kernels/cache_kernels.cu",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        4540,
+        4543
+      ]
+    },
+    {
+      "path": "csrc/kernels/chunk_gated_delta_rule_fwd_h.cu",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        44
+      ]
+    },
+    {
+      "path": "csrc/kernels/custom_kernels.cu",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        29
+      ]
+    },
+    {
+      "path": "csrc/kernels/dsv4_rotate_quant.cu",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        1006
+      ]
+    },
+    {
+      "path": "csrc/kernels/fused_qk_norm.cu",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        119,
+        136
+      ]
+    },
+    {
+      "path": "csrc/kernels/fused_qk_norm_rope_cache_quant.cu",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        112,
+        5559,
+        6558,
+        6602,
+        6690
+      ]
+    },
+    {
+      "path": "csrc/kernels/fused_qk_rmsnorm_group_quant.cu",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        1045
+      ]
+    },
+    {
+      "path": "csrc/kernels/fused_qknorm_idxrqknorm.cu",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        47
+      ]
+    },
+    {
+      "path": "csrc/kernels/inverse_rope_group_quant.cu",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        37,
+        140,
+        146,
+        157,
+        180,
+        204,
+        398,
+        1069,
+        1584,
+        1688
+      ]
+    },
+    {
+      "path": "csrc/kernels/mha_v4_quant.cu",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        297,
+        490,
+        630,
+        706,
+        735,
+        781,
+        782,
+        908,
+        1014
+      ]
+    },
+    {
+      "path": "csrc/kernels/mhc_kernels.cu",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        35,
+        36,
+        40,
+        549,
+        556,
+        564,
+        830
+      ]
+    },
+    {
+      "path": "csrc/kernels/mla/hk/hk_mla_buffer_managers.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        1342,
+        1386
+      ]
+    },
+    {
+      "path": "csrc/kernels/mla/hk/hk_mla_utils.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        300,
+        311,
+        362,
+        371,
+        450
+      ]
+    },
+    {
+      "path": "csrc/kernels/mla/hk/mi35x_v32_fwd_decode_m16x4_fp8_fp8.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        15,
+        1220
+      ]
+    },
+    {
+      "path": "csrc/kernels/mla/hk/mi35x_v32_fwd_decode_m16x8_fp8_fp8.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        15,
+        1155
+      ]
+    },
+    {
+      "path": "csrc/kernels/mla/hk/mi35x_v40_fwd_decode_m16x4_fp8bf16_fp8bf16_gen1.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        44
+      ]
+    },
+    {
+      "path": "csrc/kernels/mla/hk/mi35x_v40_fwd_decode_m16x8_fp8bf16_fp8bf16_gen1.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        38
+      ]
+    },
+    {
+      "path": "csrc/kernels/mla/hk_v32_decode_fwd.cu",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        44,
+        65,
+        71,
+        92
+      ]
+    },
+    {
+      "path": "csrc/kernels/mla/hk_v40_decode_fwd.cu",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        28,
+        46,
+        67
+      ]
+    },
+    {
+      "path": "csrc/kernels/mla/metadata/v1_2_device.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        27,
+        50,
+        172,
+        1189,
+        1200,
+        1298,
+        1324,
+        1391,
+        1396,
+        1414,
+        1416,
+        1418,
+        1420,
+        1422,
+        1437,
+        1441,
+        1442,
+        1449,
+        1486,
+        1489,
+        1494
+      ]
+    },
+    {
+      "path": "csrc/kernels/mla/opus/mla_decode_fp8_16mx8_32nx1.hpp",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        3,
+        46,
+        64,
+        318,
+        1365,
+        1392
+      ]
+    },
+    {
+      "path": "csrc/kernels/mla/opus/mla_decode_mxfp8_16mx8_32nx1.hpp",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        6,
+        1781
+      ]
+    },
+    {
+      "path": "csrc/kernels/mla/opus/mla_decode_traits.h",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        198,
+        221
+      ]
+    },
+    {
+      "path": "csrc/kernels/mla/opus/mla_global_load.hpp",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        24,
+        48,
+        65
+      ]
+    },
+    {
+      "path": "csrc/kernels/mla/opus_mla_decode_fwd.cu",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        8,
+        121,
+        230,
+        337
+      ]
+    },
+    {
+      "path": "csrc/kernels/mxfp4_moe/moe_aux/moe_sort_quant.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        272,
+        278,
+        279
+      ]
+    },
+    {
+      "path": "csrc/kernels/quant_kernels.cu",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        59,
+        2361,
+        2653
+      ]
+    },
+    {
+      "path": "csrc/kernels/quant_mxfp4.cu",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        32,
+        118,
+        159
+      ]
+    },
+    {
+      "path": "csrc/kernels/quant_mxfp4_gemm.cu",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        200,
+        317
+      ]
+    },
+    {
+      "path": "csrc/kernels/quant_mxfp6_gemm.cu",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        220,
+        288,
+        319,
+        394,
+        395
+      ]
+    },
+    {
+      "path": "csrc/kernels/rmsnorm_quant_kernels.cu",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        157,
+        196
+      ]
+    },
+    {
+      "path": "csrc/kernels/rope/rope_common.h",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        7404,
+        7530
+      ]
+    },
+    {
+      "path": "csrc/kernels/sparse_attn/msa/pa_sparse_block_select_entry.cu",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        30,
+        36
+      ]
+    },
+    {
+      "path": "csrc/kernels/sparse_attn/msa/pa_sparse_block_select_kernels.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        29
+      ]
+    },
+    {
+      "path": "csrc/kernels/topk_per_row_kernels.cu",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        490
+      ]
+    },
+    {
+      "path": "csrc/opus_gemm/codegen/common.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        94,
+        95
+      ]
+    },
+    {
+      "path": "csrc/opus_gemm/codegen/gen_instances_gfx942.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        408,
+        424
+      ]
+    },
+    {
+      "path": "csrc/opus_gemm/codegen/gen_instances_gfx950.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        3,
+        17,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        39,
+        42,
+        43,
+        44,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        74,
+        89,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100,
+        101,
+        102,
+        103,
+        104,
+        105,
+        106,
+        107,
+        108,
+        112,
+        113,
+        114,
+        115,
+        116,
+        117,
+        118,
+        119,
+        120,
+        121,
+        122,
+        123,
+        124,
+        125,
+        126,
+        127,
+        132,
+        136,
+        154,
+        155,
+        156,
+        157,
+        158,
+        159,
+        162,
+        174,
+        323,
+        406,
+        497,
+        514,
+        636,
+        682,
+        773,
+        918,
+        935,
+        941,
+        1162,
+        1287,
+        1397,
+        1403,
+        1404,
+        1667,
+        1763,
+        1805,
+        1923,
+        1980,
+        2155,
+        2362,
+        2541,
+        2718,
+        2822,
+        2823,
+        2824,
+        2825,
+        2826,
+        2827,
+        2828,
+        2829,
+        2847
+      ]
+    },
+    {
+      "path": "csrc/opus_gemm/gen_instances.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        14,
+        51,
+        57,
+        63,
+        69,
+        75,
+        76,
+        94,
+        105,
+        159,
+        166,
+        171,
+        172,
+        180,
+        222,
+        228,
+        408,
+        416,
+        516,
+        517,
+        676,
+        677,
+        682,
+        683,
+        703,
+        833,
+        837,
+        838,
+        962,
+        1247,
+        1286,
+        1291,
+        1338
+      ]
+    },
+    {
+      "path": "csrc/opus_gemm/include/gfx1250/opus_co_launch_gfx1250.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        89
+      ]
+    },
+    {
+      "path": "csrc/opus_gemm/include/gfx1250/opus_gemm_pipeline_a16w16_clusterlaunch_tdm_splitk_fuse_gfx1250.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        56
+      ]
+    },
+    {
+      "path": "csrc/opus_gemm/include/gfx1250/opus_gemm_pipeline_a16w16_clusterlaunch_tdm_splitk_ws_gfx1250.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        76
+      ]
+    },
+    {
+      "path": "csrc/opus_gemm/include/gfx1250/splitk_reduce_gfx1250.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        8
+      ]
+    },
+    {
+      "path": "csrc/opus_gemm/include/gfx950/opus_bmm_launchers_a8w8_mxscale_gfx950.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        7
+      ]
+    },
+    {
+      "path": "csrc/opus_gemm/include/gfx950/opus_bmm_pipeline_a8w8_mxscale_gfx950.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        8,
+        22,
+        82,
+        84,
+        610,
+        612,
+        613,
+        618,
+        620,
+        623,
+        624,
+        629,
+        631,
+        634,
+        635,
+        640,
+        642,
+        645,
+        646,
+        657,
+        659,
+        661,
+        667,
+        669,
+        1029,
+        1031,
+        1032
+      ]
+    },
+    {
+      "path": "csrc/opus_gemm/include/gfx950/opus_gemm_arch_gfx950.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        4,
+        42,
+        76,
+        77,
+        89,
+        90,
+        99,
+        100,
+        103,
+        105,
+        107,
+        109,
+        110,
+        112,
+        113,
+        115,
+        120,
+        123,
+        125,
+        126,
+        128,
+        129,
+        132,
+        138,
+        142,
+        144,
+        148,
+        149,
+        152,
+        153,
+        156,
+        162,
+        164,
+        168,
+        169,
+        172,
+        173,
+        176,
+        182,
+        185,
+        187,
+        190,
+        196,
+        198,
+        201,
+        206,
+        208,
+        209,
+        212,
+        214,
+        218,
+        220,
+        223
+      ]
+    },
+    {
+      "path": "csrc/opus_gemm/include/gfx950/opus_gemm_pipeline_a16w16_4g_safe_gfx950.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        21,
+        195,
+        197,
+        198,
+        199,
+        629,
+        630
+      ]
+    },
+    {
+      "path": "csrc/opus_gemm/include/gfx950/opus_gemm_pipeline_a16w16_flatmm_gfx950.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        12,
+        169,
+        172,
+        173,
+        174,
+        509,
+        510
+      ]
+    },
+    {
+      "path": "csrc/opus_gemm/include/gfx950/opus_gemm_pipeline_a16w16_flatmm_splitk_gfx950.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        20,
+        21,
+        206,
+        208,
+        209,
+        559,
+        560
+      ]
+    },
+    {
+      "path": "csrc/opus_gemm/include/gfx950/opus_gemm_pipeline_a16w16_gfx950.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        9,
+        183,
+        185,
+        186,
+        187,
+        597,
+        598
+      ]
+    },
+    {
+      "path": "csrc/opus_gemm/include/gfx950/opus_gemm_pipeline_a16w16_mono_tile_4g_safe_gfx950.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        15,
+        16,
+        19,
+        32,
+        34,
+        244,
+        248,
+        249,
+        251,
+        480,
+        481
+      ]
+    },
+    {
+      "path": "csrc/opus_gemm/include/gfx950/opus_gemm_pipeline_a16w16_mono_tile_gfx950.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        10,
+        11,
+        14,
+        27,
+        29,
+        239,
+        243,
+        244,
+        246,
+        451,
+        452
+      ]
+    },
+    {
+      "path": "csrc/opus_gemm/include/gfx950/opus_gemm_pipeline_a16w16_persistent_4g_safe_gfx950.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        22,
+        47,
+        56,
+        59,
+        63,
+        70,
+        72,
+        355,
+        561,
+        565
+      ]
+    },
+    {
+      "path": "csrc/opus_gemm/include/gfx950/opus_gemm_pipeline_a16w16_persistent_gfx950.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        10,
+        35,
+        44,
+        47,
+        51,
+        58,
+        60,
+        338,
+        544,
+        548
+      ]
+    },
+    {
+      "path": "csrc/opus_gemm/include/gfx950/opus_gemm_pipeline_a8w8_mxscale_flatmm_splitk_gfx950.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        4,
+        11,
+        15,
+        369,
+        372,
+        1094,
+        1103,
+        1106,
+        1422,
+        1440,
+        1443,
+        1626,
+        1639,
+        1642,
+        1811,
+        1823,
+        1826,
+        1994
+      ]
+    },
+    {
+      "path": "csrc/opus_gemm/include/gfx950/opus_gemm_pipeline_a8w8_noscale_gfx950.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        9,
+        165,
+        167,
+        468,
+        470,
+        471
+      ]
+    },
+    {
+      "path": "csrc/opus_gemm/include/gfx950/opus_gemm_pipeline_a8w8_scale_gfx950.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        5
+      ]
+    },
+    {
+      "path": "csrc/opus_gemm/include/gfx950/opus_gemm_traits_a16w16_gfx950.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        5,
+        7,
+        8,
+        15,
+        17,
+        21,
+        25,
+        29,
+        54,
+        127,
+        128,
+        143,
+        178,
+        263,
+        264,
+        268,
+        297,
+        324,
+        337,
+        407,
+        408,
+        430,
+        442,
+        455,
+        523,
+        524,
+        550,
+        580,
+        613,
+        644,
+        736,
+        737,
+        747
+      ]
+    },
+    {
+      "path": "csrc/opus_gemm/include/gfx950/opus_gemm_traits_a8w8_noscale_gfx950.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        14,
+        35,
+        38,
+        75,
+        76,
+        78,
+        80
+      ]
+    },
+    {
+      "path": "csrc/opus_gemm/include/gfx950/opus_gemm_traits_a8w8_scale_gfx950.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        9,
+        16,
+        39,
+        42,
+        85,
+        108,
+        139,
+        150,
+        189
+      ]
+    },
+    {
+      "path": "csrc/opus_gemm/include/gfx950/splitk_reduce_gfx950.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        6,
+        79,
+        80,
+        255,
+        256,
+        268,
+        279
+      ]
+    },
+    {
+      "path": "csrc/opus_gemm/include/opus_gemm_arch.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        16,
+        27,
+        44,
+        46
+      ]
+    },
+    {
+      "path": "csrc/opus_gemm/include/opus_gemm_common.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        8,
+        13,
+        93,
+        94,
+        95,
+        96,
+        97
+      ]
+    },
+    {
+      "path": "csrc/opus_gemm/include/opus_gemm_utils.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        98
+      ]
+    },
+    {
+      "path": "csrc/opus_gemm/opus_bmm.cu",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        10,
+        22,
+        26,
+        51,
+        68,
+        71,
+        75,
+        76,
+        82
+      ]
+    },
+    {
+      "path": "csrc/opus_gemm/opus_bmm_mxscale_tune.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        44,
+        175,
+        486,
+        487,
+        566
+      ]
+    },
+    {
+      "path": "csrc/opus_gemm/opus_gemm.cu",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        8,
+        9,
+        10,
+        41,
+        42,
+        43,
+        46,
+        84,
+        85,
+        86,
+        90,
+        128,
+        129,
+        130,
+        134,
+        170,
+        171,
+        172,
+        200,
+        201,
+        202,
+        229,
+        230,
+        231,
+        256,
+        257,
+        258
+      ]
+    },
+    {
+      "path": "csrc/opus_gemm/opus_gemm_a8w8_tune.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        23,
+        132
+      ]
+    },
+    {
+      "path": "csrc/opus_gemm/opus_gemm_common.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        14,
+        59,
+        95,
+        280,
+        308,
+        342,
+        357,
+        358,
+        730,
+        802,
+        804,
+        805,
+        842,
+        863,
+        864,
+        865,
+        1161,
+        1820,
+        1821,
+        1836,
+        1891,
+        1897,
+        1917,
+        1986,
+        2032
+      ]
+    },
+    {
+      "path": "csrc/opus_gemm/opus_gemm_tune.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        438,
+        747,
+        748,
+        772,
+        860,
+        1149,
+        1359
+      ]
+    },
+    {
+      "path": "csrc/opus_moe/gen_instances.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        22,
+        169,
+        232,
+        319,
+        461,
+        498,
+        510,
+        523,
+        524,
+        529,
+        530,
+        544,
+        576,
+        583,
+        595,
+        600
+      ]
+    },
+    {
+      "path": "csrc/opus_moe/include/gfx950/a16w16/opus_moe_pipeline_stage2_gemmstyle_gfx950.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        6,
+        270,
+        273
+      ]
+    },
+    {
+      "path": "csrc/opus_moe/include/gfx950/a16w16/opus_moe_traits_stage2_gfx950.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": true,
+      "line_hits": []
+    },
+    {
+      "path": "csrc/opus_moe/include/gfx950/a8w4/opus_moe_pipeline_stage2_a8w4_decode_main_gfx950.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        5,
+        6,
+        11,
+        216,
+        887,
+        929,
+        1076,
+        1213,
+        1219,
+        1223,
+        1389
+      ]
+    },
+    {
+      "path": "csrc/opus_moe/include/gfx950/a8w4/opus_moe_pipeline_stage2_a8w4_decode_policy_gfx950.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        5
+      ]
+    },
+    {
+      "path": "csrc/opus_moe/include/gfx950/a8w4/opus_moe_stage2_a8w4_decode_dispatch_gfx950.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        5,
+        12,
+        16,
+        38,
+        42
+      ]
+    },
+    {
+      "path": "csrc/opus_moe/include/gfx950/a8w4/opus_moe_traits_stage2_a8w4_decode_gfx950.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        47
+      ]
+    },
+    {
+      "path": "csrc/opus_moe/include/gfx950/a8w4/stage1/opus_moe_stage1_a8w4_dispatch_gfx950.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        5,
+        19,
+        26,
+        30,
+        39,
+        44
+      ]
+    },
+    {
+      "path": "csrc/opus_moe/include/gfx950/a8w4/stage1/opus_moe_stage1_a8w4_pipeline_common_gfx950.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        5
+      ]
+    },
+    {
+      "path": "csrc/opus_moe/include/gfx950/a8w4/stage1/opus_moe_stage1_a8w4_pipeline_group_split_gfx950.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        5,
+        330,
+        332
+      ]
+    },
+    {
+      "path": "csrc/opus_moe/include/gfx950/a8w4/stage1/opus_moe_stage1_a8w4_pipeline_pair_kwave_gfx950.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        5,
+        225,
+        227
+      ]
+    },
+    {
+      "path": "csrc/opus_moe/include/gfx950/a8w4/stage1/opus_moe_stage1_a8w4_traits_gfx950.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        64,
+        164
+      ]
+    },
+    {
+      "path": "csrc/opus_moe/include/gfx950/opus_moe_arch_gfx950.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        4,
+        8,
+        9,
+        23,
+        26,
+        52,
+        56,
+        68
+      ]
+    },
+    {
+      "path": "csrc/opus_moe/include/gfx950/opus_moe_stage2_route_output_reduce_gfx950.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        7,
+        44,
+        46,
+        59,
+        62,
+        114,
+        115,
+        116,
+        117,
+        266,
+        272,
+        277,
+        285,
+        292,
+        300,
+        310,
+        319,
+        325,
+        338,
+        353,
+        357,
+        361,
+        365
+      ]
+    },
+    {
+      "path": "csrc/opus_moe/include/gfx950/opus_moe_stage2_utils_gfx950.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": true,
+      "line_hits": [
+        10,
+        19,
+        23
+      ]
+    },
+    {
+      "path": "csrc/opus_moe/include/opus_moe_host_impl.cuh",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        12,
+        13,
+        14,
+        59,
+        60,
+        65,
+        385,
+        568,
+        645
+      ]
+    },
+    {
+      "path": "csrc/opus_moe/opus_moe_common.py",
+      "source_kind": "python",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        130,
+        131,
+        150,
+        940,
+        1017
+      ]
+    },
+    {
+      "path": "csrc/py_itfs_cu/asm_mla.cu",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        913,
+        918,
+        931,
+        942,
+        985,
+        990,
+        994,
+        998,
+        1006,
+        1013
+      ]
+    },
+    {
+      "path": "csrc/py_itfs_cu/asm_mla_v4.cu",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        22
+      ]
+    },
+    {
+      "path": "csrc/py_itfs_cu/fmha_fwd_bf16_opus_kernels.cu",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        4
+      ]
+    },
+    {
+      "path": "csrc/py_itfs_cu/mla_v4_prefill_opus_kernels.cu",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        6,
+        20,
+        58,
+        141,
+        302
+      ]
+    },
+    {
+      "path": "csrc/py_itfs_cu/pa_mqa_logits_mxfp4_gfx1250_kernels.cu",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        37
+      ]
+    },
+    {
+      "path": "csrc/py_itfs_cu/pa_mqa_logits_mxfp4_kernels.cu",
+      "source_kind": "native",
+      "path_mentions_gfx950": false,
+      "line_hits": [
+        4
+      ]
+    }
+  ]
+}
