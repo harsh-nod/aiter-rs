@@ -2,26 +2,35 @@
 
 ## The question
 
-What mistakes do coding agents introduce while writing or improving
-performance-critical AMD GPU kernels, especially when fusing stages into a
-megakernel or modifying a persistent kernel? Which mistakes survive the tests
-available to the agent, and which could fe2o3 detect early enough to matter?
+This project has two empirical questions:
 
-The **unit of observation is an agent-produced candidate change**, not an
-AITER PR. AITER supplies source-visible implementations, realistic workloads,
-performance targets, and examples of hazards. It cannot tell us
+1. What mistakes do coding agents introduce while writing or improving
+   performance-critical AMD GPU kernels, especially megakernels? Which survive
+   the tests available to the agent?
+2. What bugs or unsupported assumptions exist in current source-visible AITER
+   kernels, whether written by humans, agents, or both?
+
+For each question, which defects could fe2o3 detect early enough to matter?
+
+For the agent study, the **unit of observation is an agent-produced candidate
+change**, not an AITER PR. For the independent audit, it is a pinned kernel
+entry point and its tested configurations. AITER supplies source-visible
+implementations, realistic workloads, performance targets, and examples of
+hazards. It cannot tell us
 how often agents make a mistake: most PRs are not labeled agent work, merged
 diffs omit failed attempts, and a fix commit does not identify who or what
 introduced the original defect.
 
-The primary outcome is the distribution of errors in recorded agent
-optimization trajectories. The secondary outcome is whether fe2o3 can detect
-those observed errors, under a clearly stated model. Porting AITER to Rust is
-not the primary discovery method. Primary tasks use the source's native AMD
-kernel stack (such as HIP, Triton, or FlyDSL). Agent-written Rust ports are
-valuable as a separately labeled task mode: they expose translation and
-fe2o3 usability problems, but their error frequencies must not be pooled
-with native-kernel optimization errors.
+Keep two separate corpora: **agent-induced regressions**, identified from
+recorded optimization trajectories, and **AITER audit findings**, identified
+by examining and testing pinned upstream source. Their denominators and
+attribution are different. The third outcome is whether fe2o3 can detect
+confirmed examples from either corpus, under a clearly stated model. Porting
+AITER to Rust is not the primary discovery method. Primary agent tasks use
+the source's native AMD kernel stack (such as HIP, Triton, or FlyDSL).
+Agent-written Rust ports are valuable as a separately labeled task mode:
+they expose translation and fe2o3 usability problems, but their error
+frequencies must not be pooled with native-kernel errors.
 
 ## A concrete experiment
 
@@ -79,6 +88,43 @@ and numeric agreement. Hang-prone cases run in an isolated GPU worker with
 a watchdog and a documented recovery procedure. No passing stress test is
 reported as proof of forward progress.
 
+## Independent AITER bug hunt
+
+Inventory every source-visible AITER kernel module and exposed entry point at
+a pinned upstream commit, marking uncertain wrapper-to-kernel mappings.
+Record backend, operation, supported shapes/dtypes/layouts, architecture,
+launch/dispatch path, and existing test coverage. Rank the inventory by
+risk: cross-block or cross-rank communication, persistent state,
+barriers/fences/atomics, quantized layouts, shape-dependent dispatch, and
+little edge-case coverage. The pilot deeply audits source-visible MegaMoE
+and two other high-risk families; the inventory lets later rounds cover the
+rest. Binary-only providers such as PR #4975 receive integration audits,
+not kernel-source audits.
+
+For each selected family, combine source review with independent differential
+and metamorphic tests. Extend AITER's documented
+[operator tests](https://github.com/ROCm/aiter/blob/main/CONTRIBUTE.md)
+with boundary and tail shapes, noncontiguous views, layout-equivalent copies,
+padding, quantization extremes, architecture-specific launch choices,
+repeated runs, scratch reuse, and synchronization stress. For megakernels,
+vary occupancy, stage timing, queue depth, and participating ranks where
+supported. Use an independent mathematical reference or a separately
+validated implementation; two paths sharing the same indexing or layout
+assumption are not an independent oracle.
+
+Log every audited entry point and tested configuration, including negative
+results. A suspected defect becomes a confirmed finding only after a
+reproducible input, pinned version and hardware, expected behavior under the
+documented contract, and a minimized trigger are recorded. Distinguish a
+kernel bug from unsupported input, wrapper/dispatch bug, flaky environment,
+or an ambiguous contract. Check existing issues/PRs for duplicates, then
+report new confirmed findings upstream with a safe reproducer. These findings
+can strengthen future hidden tests, but cannot retroactively change frozen
+agent trials or be labeled agent mistakes without trace evidence.
+If an audit finds a defect in an agent task's starting implementation, mark
+that trial contaminated and rerun from a corrected, newly pinned baseline;
+do not attribute the pre-existing defect to the agent.
+
 ## Pilot design
 
 - Six performance challenges: three conventional kernels (one from-spec, two
@@ -101,27 +147,32 @@ reported as proof of forward progress.
   submission. Use fresh optimization objectives and hidden shapes to reduce
   memorized-PR leakage; disclose that public AITER code may be in training
   data.
+- In parallel, inventory the pinned AITER source and deeply audit three
+  high-risk families, led by source-visible MegaMoE. Do not set a target
+  number of bugs; record coverage and negative results.
 
-Historical AITER incidents and PR histories form a **secondary hazard
-catalog**, used to select edge cases and check that the test matrix is
-realistic. Sample across operators and backends; do not review every PR or
-turn historical fix counts into an agent-error frequency.
+Historical AITER incidents and PR histories form a **hazard catalog**, used
+to select edge cases and check that the audit matrix is realistic. Sample
+across operators and backends; do not review every PR or turn historical fix
+counts into an agent-error frequency.
 
 ## Parallel agent work
 
 The coordinator freezes the protocol and integrates work. Workers use
 separate branches and owned paths. With four active agents, the coordinator
-and three workers can run workstreams A, B, and C concurrently; D begins
-when their interfaces are frozen; E and F can overlap with later trials.
+and three workers can run workstreams A, B, and C concurrently; D and G begin
+when the task/harness interfaces are frozen; E and F process findings as
+they arrive.
 
 | Workstream | Owned paths | Deliverable |
 | --- | --- | --- |
-| A. Source and task selection | tasks/, baselines/ | Six pinned performance challenges, split into from-spec and optimization modes, with measured headroom or performance targets; a secondary AITER hazard catalog. |
+| A. Source and task selection | tasks/, baselines/ | Six pinned performance challenges, split into from-spec and optimization modes, with measured headroom or performance targets. |
 | B. Oracle and performance harness | harness/, references/ | Independent operator references, frozen visible/hidden tests, candidate replay, latency harness, environment manifest, and reliable result artifacts. |
 | C. Megakernel protocol and stress tests | mega/ | Source-visible MegaMoE task(s), stage-handoff and progress invariants, shape/occupancy matrix, watchdog, and isolated recovery procedure. |
 | D. Agent runner | runs/ | Reproducible agent invocations, complete candidate trajectories, and manifest for every trial cell. Start scored trials only after A-C freeze. |
 | E. Failure adjudication | analysis/ | Minimized repros, root-cause taxonomy, independent review, detection timing, and per-task/architecture results. |
-| F. fe2o3 coverage | cases/fe2o3/, proofs/ | Minimal faithful or explicitly abstracted Rust versions of observed agent failures, corrected counterparts, receipts, and an unsupported-feature inventory. |
+| F. fe2o3 coverage | cases/fe2o3/, proofs/ | Minimal faithful or explicitly abstracted Rust versions of confirmed agent and AITER-audit failures, corrected counterparts, receipts, and unsupported features. |
+| G. AITER audit | audit/ | Source-visible module/entry-point inventory, risk ranking, deep audits of MegaMoE plus two families, test/repro logs, and confirmed upstream reports. |
 
 The coordinator owns README.md, PLAN.md, protocol/, schema changes, task
 freeze, and merges. Workers do not change another workstream's hidden tests
@@ -150,9 +201,9 @@ Label **mechanism**, **affected layer**, and **symptom** separately:
 
 Assign a primary root cause only after reproducing it. Record uncertain and
 multi-cause cases honestly. Two reviewers independently classify a sample of
-agent-induced regressions and resolve disagreements from the trace and
-minimal repro. Historical AITER defects use the same vocabulary but remain
-in a separate dataset with unknown agent attribution.
+agent-induced regressions and AITER audit findings, resolving disagreements
+from the trace or minimal repro. Both corpora use the same vocabulary but
+remain separate, with unknown agent attribution for upstream findings.
 
 ## Scoring and fe2o3 follow-up
 
@@ -164,13 +215,13 @@ same hardware and workload, with warmup and repeated samples. Do not credit
 a fast wrong kernel. Publish per-task and per-task-mode results, not only
 aggregate percentages.
 
-For each confirmed agent-induced error selected for fe2o3, first retain its
-native repro. Port the smallest relevant property, labeling the translation
-faithful, abstracted, or not representable. Show the buggy and corrected
-variants, exact assumptions, verification command, diagnostic/receipt, and
-native GPU result. Score detection, false rejection of the corrected case,
-unsupported features, modeling time, and whether the result would have been
-available before the agent's GPU debugging step.
+For each confirmed error selected for fe2o3 from either corpus, first retain
+its native repro and provenance. Port the smallest relevant property,
+labeling the translation faithful, abstracted, or not representable. Show
+the buggy and corrected variants, exact assumptions, verification command,
+diagnostic/receipt, and native GPU result. Score detection, false rejection
+of the corrected case, unsupported features, modeling time, and whether the
+result would have been available before GPU debugging.
 
 fe2o3 currently documents bounds, race, barrier, and related checks in its
 [kernel pipeline](https://github.com/powderluv/fe2o3/blob/main/docs/general-kernel-check-pipeline-v1.md).
@@ -187,9 +238,12 @@ not needed to discover native agent mistakes.
 The pilot is complete when all 36 planned trajectories have preserved
 candidate histories or explicit failed/unsupported records; every scored
 task has a pinned correct AITER reference or baseline and frozen independent
-tests; all
-reported regressions have reproducible evidence and layer/mechanism labels;
+tests; all reported regressions have reproducible evidence and
+layer/mechanism labels;
 megakernel hangs were tested under a watchdog; and the fe2o3 report
 distinguishes caught, missed, abstracted, and unrepresentable cases. The
-next study should expand task and agent diversity based on the observed
-failure distribution, not on a preset list of AITER PRs.
+AITER audit must also inventory source-visible kernel modules and exposed
+entry points, log coverage and negative results for three deep-audited
+families, and document confirmed findings separately. The next study
+should expand task, agent, and audit diversity based on observed gaps, not
+on a preset list of AITER PRs.
