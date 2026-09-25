@@ -20,8 +20,12 @@ Store a JSON task outside the agent workspace with these required fields:
   "prompt_file": "prompt.md",
   "starter_dir": "starter",
   "harness_revision": "full harness Git SHA",
+  "harness_spec_sha256": "SHA256 of pinned harness spec JSON",
+  "task_mode": "no_feedback",
+  "build_sources": ["kernel.hip"],
+  "build_flags": ["-O3", "-shared", "-fPIC", "--offload-arch=gfx950"],
   "scored_eligible": true,
-  "visible_checks": [["bash", "visible.sh"]],
+  "visible_checks": [],
   "hidden_checks": [],
   "benchmark": null
 }
@@ -30,6 +34,11 @@ Store a JSON task outside the agent workspace with these required fields:
 Paths are relative to the task directory. The task JSON, prompt, and starter
 files are hashed by `freeze`. Only the starter directory is copied into the
 agent workspace. Hidden checks and benchmark commands remain runner-side.
+`no_feedback` tasks must supply no visible checks; `visible_tests_available`
+tasks must list at least one. This labels *supplied* checks, not a runner-run
+interactive feedback loop: an agent may choose to run them, compile, or devise
+its own checks. The raw trajectory records what it actually did. Both modes
+receive the same independent post-agent scoring.
 The task owner must freeze public contract, hidden tests, workload buckets,
 and per-bucket AITER parity thresholds before scored trials.
 
@@ -46,8 +55,13 @@ prompt hash,
 task/harness revision, AITER SHA, SKU, and workspace starter hash. Codex CLI
 does not expose a sampling seed in this invocation; `replicate_id` identifies
 independent sessions and must not be interpreted as a controlled seed.
-An actual agent launch requires `scored_eligible: true` and a full pinned
-harness SHA; the dry-run fixture deliberately fails that gate.
+An actual agent launch requires `scored_eligible: true`, a full pinned harness
+SHA, spec hash, and frozen build command; the dry-run fixture deliberately
+fails that gate.
+For exploratory implementation before task admission, `--unscored-preview`
+actually invokes Codex on a task with `scored_eligible: false` and retains all
+snapshots. Its manifest records `incidence_eligible: false`, and `score`
+refuses that run. It must never enter an agent-error frequency denominator.
 The current runner also has no reliable model-token cap, so trials needing
 strict token-budget equality are not scored until that control is added.
 
@@ -69,14 +83,31 @@ results. The agent workspace is separated from task/harness paths for
 accidental-leak resistance, not a security boundary against a malicious
 agent; scored trials need host/container isolation of hidden tests.
 
-Only correctness-passing candidates may be benchmarked. Neither this runner
-nor `codex exec` provides that judgment. Harness results should reference
-`task_freeze_sha256`, `final_tree_sha256`, exact hardware/environment, and
-per-bucket AITER baseline revision so failures and parity can be replayed.
-The expected handoff is `python3 -m harness.run --spec <json> --candidate
-<candidate-entry-or-dir> --aiter-source <pinned-AITER-clone> --output <new-dir>
---task-freeze-sha256 <sha> --final-tree-sha256 <sha>`. The harness records its
-own candidate-path hash separately from this runner's source-tree hash. The
-example under
-`runs/examples/` is a **no-score** CLI preview, not a task with a validated
-contract or oracle.
+After the agent exits, score from a trusted control plane:
+
+```sh
+python3 runs/runner.py score --task tasks/example/task.json \
+  --freeze tasks/example/task.freeze.json --run-dir runs/artifacts/<run-id> \
+  --harness-root <clean-pinned-harness-checkout> \
+  --spec <clean-pinned-harness-checkout>/references/<spec>.json \
+  --aiter-source <clean-pinned-AITER-checkout> \
+  --output runs/scores/<run-id> --snapshot all --correctness-only
+```
+
+`score` verifies the task freeze, pinned clean Git checkouts, spec hash, and
+each snapshot/blob hash. It exports sources to a new directory, compiles with
+the frozen `hipcc` argv into `libcandidate.so`, and invokes the scorer on that
+binary. It never invokes an agent-written build script or passes the live
+workspace to the scorer. The scorer must enforce correctness before timing;
+the runner validates the returned task/AITER/spec/binary/source hashes and
+records `joint_pass` separately from scorer execution status. Use `--snapshot
+final` for just the submitted source and omit `--correctness-only` only when
+the GPU is uncontended and the benchmark contract is admitted.
+
+The scorer consumes the native C ABI in
+`references/quant_mxfp4_abi.h`: `aiter_rs_quant_mxfp4_even` accepts GPU input,
+packed/scales outputs, dimensions, dtype, and a HIP stream, returning a HIP
+error code. Its `result.json` stores correctness and per-bucket performance,
+and hashes the compiled `.so` separately from the source snapshot. The
+example under `runs/examples/` is a **no-score** CLI preview, not a validated
+kernel task.

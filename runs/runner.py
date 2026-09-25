@@ -39,12 +39,14 @@ def digest(data: bytes) -> str:
 
 def read_task(path: Path) -> dict:
     task = json.loads(path.read_text(encoding="utf-8"))
-    required = {"task_id", "task_revision", "aiter_sha", "gpu_sku", "target_arch", "operator_entry", "prompt_file", "starter_dir", "harness_revision"}
+    required = {"task_id", "task_revision", "aiter_sha", "gpu_sku", "target_arch", "operator_entry", "prompt_file", "starter_dir", "harness_revision", "task_mode"}
     missing = required - task.keys()
     if missing:
         raise ValueError(f"missing task fields: {', '.join(sorted(missing))}")
     if task["target_arch"] != "gfx950":
         raise ValueError("only gfx950 tasks are eligible")
+    if task["task_mode"] not in {"no_feedback", "visible_tests_available"}:
+        raise ValueError("task_mode must be no_feedback or visible_tests_available")
     if not all(isinstance(task[k], str) and task[k] for k in required):
         raise ValueError("required task fields must be nonempty strings")
     for key in ("task_id", "task_revision"):
@@ -62,10 +64,22 @@ def read_task(path: Path) -> dict:
             raise ValueError(f"{key} escapes task directory")
         if not target.exists():
             raise ValueError(f"{key} does not exist: {target}")
+    if not isinstance(task.get("build_sources", []), list) or not all(isinstance(source, str) for source in task.get("build_sources", [])):
+        raise ValueError("build_sources must be a list of relative paths")
+    for source in task.get("build_sources", []):
+        relative = Path(source)
+        if relative.is_absolute() or ".." in relative.parts or relative == Path("."):
+            raise ValueError("build_sources must be relative paths within exported snapshots")
+    if not isinstance(task.get("build_flags", []), list) or not all(isinstance(flag, str) for flag in task.get("build_flags", [])):
+        raise ValueError("build_flags must be a list of argv values")
     for key in ("visible_checks", "hidden_checks"):
         checks = task.get(key, [])
         if not isinstance(checks, list) or any(not isinstance(c, list) or not c or not all(isinstance(x, str) for x in c) for c in checks):
             raise ValueError(f"{key} must be a list of argv arrays")
+    if task["task_mode"] == "no_feedback" and task.get("visible_checks"):
+        raise ValueError("no_feedback task cannot list visible checks")
+    if task["task_mode"] == "visible_tests_available" and not task.get("visible_checks"):
+        raise ValueError("visible_tests_available task requires visible checks")
     return task
 
 
@@ -92,6 +106,10 @@ def freeze_payload(task_path: Path) -> dict:
         "aiter_sha": task["aiter_sha"],
         "gpu_sku": task["gpu_sku"],
         "target_arch": task["target_arch"],
+        "task_mode": task["task_mode"],
+        "harness_spec_sha256": task.get("harness_spec_sha256"),
+        "build_sources": task.get("build_sources"),
+        "build_flags": task.get("build_flags"),
     }
 
 
@@ -174,12 +192,19 @@ class Snapshotter:
 def run_agent(args: argparse.Namespace) -> int:
     task_path = args.task.resolve()
     task = read_task(task_path)
-    if not args.dry_run:
+    if args.unscored_preview and task.get("scored_eligible") is not False:
+        raise ValueError("unscored preview requires scored_eligible=false")
+    if not args.dry_run and not args.unscored_preview:
         if task.get("scored_eligible") is not True:
             raise ValueError("task must explicitly be marked scored_eligible to launch an agent")
         revision = task["harness_revision"]
         if len(revision) != 40 or any(c not in "0123456789abcdef" for c in revision.lower()):
             raise ValueError("harness_revision must be a full Git SHA for agent launch")
+        spec_sha = task.get("harness_spec_sha256", "")
+        if len(spec_sha) != 64 or any(c not in "0123456789abcdef" for c in spec_sha.lower()):
+            raise ValueError("harness_spec_sha256 must pin the scorer spec for agent launch")
+        if not task.get("build_sources") or not task.get("build_flags"):
+            raise ValueError("scored agent task needs frozen build_sources and build_flags")
     actual_freeze = freeze_payload(task_path)
     expected_freeze = json.loads(args.freeze.read_text(encoding="utf-8"))
     if expected_freeze != actual_freeze:
@@ -201,6 +226,8 @@ def run_agent(args: argparse.Namespace) -> int:
         "agent": {"cli": args.cli, "version": version, "model": args.model, "reasoning_effort": args.reasoning_effort, "replicate_id": args.replicate_id, "sampling_seed_supported": False},
         "wall_seconds": args.wall_seconds,
         "command": command,
+        "run_purpose": "command_preview" if args.dry_run else ("unscored_preview" if args.unscored_preview else "scored_trial_capture"),
+        "incidence_eligible": not args.dry_run and not args.unscored_preview,
         "status": "dry_run" if args.dry_run else "running",
     }
     if args.dry_run:
@@ -210,7 +237,8 @@ def run_agent(args: argparse.Namespace) -> int:
     workspace = result_dir / "workspace"
     shutil.copytree(task_path.parent / task["starter_dir"], workspace, symlinks=False)
     prompt = (task_path.parent / task["prompt_file"]).read_text(encoding="utf-8")
-    prompt = f"Implement the specified HIP kernel in this workspace. Target gfx950. You may use the visible tests provided in the workspace. Do not attempt to access hidden tests.\n\n{prompt}"
+    feedback = ("No supplied correctness-test feedback is available during this attempt." if task["task_mode"] == "no_feedback" else "Visible checks are supplied in this workspace; you may run them during the attempt.")
+    prompt = f"Implement the specified HIP kernel in this workspace. Target gfx950. {feedback} Do not attempt to access hidden tests.\n\n{prompt}"
     (result_dir / "prompt.txt").write_text(prompt, encoding="utf-8")
     write_json_exclusive(result_dir / "manifest.json", record)
     snapshotter = Snapshotter(workspace, result_dir)
@@ -288,11 +316,197 @@ def run_agent(args: argparse.Namespace) -> int:
         "final_tree_sha256": snapshotter.previous_tree,
         "snapshot_errors": snapshot_error,
         "scored": False,
+        "incidence_eligible": record["incidence_eligible"],
         "scoring_note": "No correctness or performance result is implied by an agent CLI exit code.",
     }
     write_json_exclusive(result_dir / "result.json", final)
     print(json.dumps({"run_dir": str(result_dir), **final}, sort_keys=True))
     return 0 if final["status"] == "completed" and not snapshot_error else 1
+
+
+def checked_git_head(root: Path, expected: str, scopes: list[str]) -> None:
+    head = subprocess.run(["git", "-C", str(root), "rev-parse", "HEAD"], capture_output=True, text=True, check=True, timeout=15).stdout.strip()
+    if head != expected:
+        raise ValueError(f"checkout at {root} is {head}, expected {expected}")
+    status = subprocess.run(["git", "-C", str(root), "status", "--porcelain", "--untracked-files=all", "--", *scopes], capture_output=True, text=True, check=True, timeout=15)
+    if status.stdout.strip():
+        raise ValueError(f"checkout is not clean in {scopes}: {root}")
+
+
+def export_snapshot(run_dir: Path, snapshot: dict, destination: Path) -> None:
+    files = snapshot["files"]
+    if digest(canonical(files)) != snapshot["tree_sha256"]:
+        raise ValueError("snapshot tree hash does not match file manifest")
+    destination.mkdir(parents=True, exist_ok=False)
+    for name, sha in files.items():
+        relative = Path(name)
+        if relative.is_absolute() or ".." in relative.parts or relative == Path("."):
+            raise ValueError(f"unsafe snapshot path: {name}")
+        blob = run_dir / "blobs" / sha
+        data = blob.read_bytes()
+        if digest(data) != sha:
+            raise ValueError(f"snapshot blob hash mismatch: {name}")
+        target = destination / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with target.open("xb") as out:
+            out.write(data)
+
+
+def run_limited(command: list[str], cwd: Path, stdout_path: Path, stderr_path: Path, wall_seconds: int, env: dict[str, str] | None = None) -> dict:
+    started = time.monotonic()
+    with stdout_path.open("xb") as stdout, stderr_path.open("xb") as stderr:
+        process = subprocess.Popen(command, cwd=cwd, stdout=stdout, stderr=stderr, start_new_session=True, env=env)
+        try:
+            exit_code = process.wait(timeout=wall_seconds)
+            status = "completed" if exit_code == 0 else "failed"
+        except subprocess.TimeoutExpired:
+            os.killpg(process.pid, signal.SIGTERM)
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                os.killpg(process.pid, signal.SIGKILL)
+                process.wait()
+            exit_code, status = process.returncode, "timeout"
+    return {"status": status, "exit_code": exit_code, "elapsed_seconds": round(time.monotonic() - started, 3)}
+
+
+def validate_harness_result(path: Path, task: dict, spec_sha: str, binary_sha: str, freeze_sha: str, tree_sha: str) -> dict:
+    try:
+        result = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"scorer result missing or invalid: {exc}") from exc
+    expected = {
+        "task_id": task["task_id"],
+        "aiter_sha": task["aiter_sha"],
+        "spec_sha256": spec_sha,
+        "candidate_path_sha256": binary_sha,
+        "task_freeze_sha256": freeze_sha,
+        "final_tree_sha256": tree_sha,
+    }
+    for field, value in expected.items():
+        if result.get(field) != value:
+            raise ValueError(f"scorer result {field} mismatch")
+    if not isinstance(result.get("joint_pass"), bool) or not isinstance(result.get("environment"), dict):
+        raise ValueError("scorer result lacks joint_pass or environment")
+    return result
+
+
+def score_snapshots(args: argparse.Namespace) -> int:
+    task_path = args.task.resolve()
+    task = read_task(task_path)
+    freeze = freeze_payload(task_path)
+    if json.loads(args.freeze.read_text(encoding="utf-8")) != freeze:
+        raise ValueError("task changed since freeze")
+    run_dir = args.run_dir.resolve()
+    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    if manifest.get("incidence_eligible") is not True:
+        raise ValueError("unscored previews cannot enter the scored harness pipeline")
+    if manifest["task_freeze"] != freeze:
+        raise ValueError("run manifest refers to a different frozen task")
+    if not (run_dir / "result.json").is_file():
+        raise ValueError("agent run has not ended; result.json is missing")
+    harness_root = args.harness_root.resolve()
+    spec = args.spec.resolve()
+    aiter_source = args.aiter_source.resolve()
+    output = args.output.resolve()
+    workspace = (run_dir / "workspace").resolve()
+    if output.is_relative_to(workspace) or harness_root.is_relative_to(workspace) or aiter_source.is_relative_to(workspace):
+        raise ValueError("trusted scorer paths must remain outside the agent workspace")
+    if not spec.is_relative_to(harness_root):
+        raise ValueError("scorer spec must be in the pinned harness checkout")
+    expected_spec = task.get("harness_spec_sha256")
+    if not expected_spec or digest(spec.read_bytes()) != expected_spec:
+        raise ValueError("scorer spec differs from frozen task")
+    checked_git_head(harness_root, task["harness_revision"], ["harness", "references"])
+    checked_git_head(aiter_source, task["aiter_sha"], ["."])
+    tracked = subprocess.run(["git", "-C", str(harness_root), "ls-files", "--error-unmatch", str(spec.relative_to(harness_root))], capture_output=True, timeout=15)
+    if tracked.returncode != 0:
+        raise ValueError("scorer spec must be tracked in pinned harness revision")
+    snapshots = [json.loads(line) for line in (run_dir / "snapshots.jsonl").read_text(encoding="utf-8").splitlines()]
+    if not snapshots:
+        raise ValueError("run contains no source snapshots")
+    if not task.get("build_sources") or not task.get("build_flags"):
+        raise ValueError("scoring requires frozen build_sources and build_flags")
+    compiler = shutil.which(args.compiler)
+    if compiler is None:
+        raise ValueError(f"HIP compiler not found: {args.compiler}")
+    compiler_version = subprocess.run([compiler, "--version"], capture_output=True, text=True, check=True, timeout=15).stdout.strip()
+    if args.snapshot == "final":
+        selected = [snapshots[-1]]
+    elif args.snapshot == "all":
+        selected = snapshots
+    else:
+        selected = [next((item for item in snapshots if item["sequence"] == int(args.snapshot)), None)]
+        if selected[0] is None:
+            raise ValueError(f"snapshot {args.snapshot} does not exist")
+    score_manifest = {
+        "schema": "aiter-rs-post-agent-score-v1",
+        "run_id": manifest["run_id"],
+        "task_freeze_sha256": manifest["task_freeze_sha256"],
+        "harness_revision": task["harness_revision"],
+        "harness_spec_sha256": expected_spec,
+        "aiter_sha": task["aiter_sha"],
+        "gpu_sku": task["gpu_sku"],
+        "target_arch": task["target_arch"],
+        "task_mode": task["task_mode"],
+        "compiler": compiler,
+        "compiler_version": compiler_version,
+        "build_sources": task["build_sources"],
+        "build_flags": task["build_flags"],
+        "snapshot_selection": args.snapshot,
+        "correctness_only": args.correctness_only,
+        "results": [],
+    }
+    if args.dry_run:
+        print(json.dumps({**score_manifest, "selected_snapshots": [item["sequence"] for item in selected], "status": "dry_run"}, sort_keys=True, indent=2))
+        return 0
+    output.mkdir(parents=True, exist_ok=False)
+    for snapshot in selected:
+        sequence = snapshot["sequence"]
+        item_dir = output / f"snapshot-{sequence:06d}"
+        item_dir.mkdir()
+        candidate = item_dir / "candidate"
+        export_snapshot(run_dir, snapshot, candidate)
+        item = {"sequence": sequence, "tree_sha256": snapshot["tree_sha256"]}
+        source_paths = [candidate / source for source in task["build_sources"]]
+        if not all(path.is_file() for path in source_paths):
+            item["status"] = "compile_input_missing"
+            write_json_exclusive(item_dir / "score_record.json", item)
+            score_manifest["results"].append(item)
+            continue
+        library = item_dir / "libcandidate.so"
+        build_command = [compiler, *task["build_flags"], *(str(path) for path in source_paths), "-o", str(library)]
+        build = run_limited(build_command, item_dir, item_dir / "compile.stdout.log", item_dir / "compile.stderr.log", args.build_wall_seconds)
+        item["build_command"] = build_command
+        item["build"] = build
+        if build["status"] != "completed" or not library.is_file():
+            item["status"] = "compile_timeout" if build["status"] == "timeout" else "compile_failed"
+            write_json_exclusive(item_dir / "score_record.json", item)
+            score_manifest["results"].append(item)
+            continue
+        item["binary_sha256"] = digest(library.read_bytes())
+        scorer_output = item_dir / "harness"
+        command = [sys.executable, "-m", "harness.run", "--spec", str(spec), "--candidate", str(library), "--aiter-source", str(aiter_source), "--output", str(scorer_output), "--task-freeze-sha256", manifest["task_freeze_sha256"], "--final-tree-sha256", snapshot["tree_sha256"]]
+        if args.correctness_only:
+            command.append("--correctness-only")
+        scorer_env = os.environ.copy()
+        scorer_env["PYTHONDONTWRITEBYTECODE"] = "1"
+        scored = run_limited(command, harness_root, item_dir / "scorer.stdout.log", item_dir / "scorer.stderr.log", args.score_wall_seconds, scorer_env)
+        item["status"] = "scorer_timeout" if scored["status"] == "timeout" else ("scorer_failed" if scored["status"] == "failed" else "completed")
+        item["scorer"] = scored
+        item["scorer_command"] = command
+        if item["status"] == "completed":
+            try:
+                result = validate_harness_result(scorer_output / "result.json", task, expected_spec, item["binary_sha256"], manifest["task_freeze_sha256"], snapshot["tree_sha256"])
+                item["joint_pass"] = result["joint_pass"]
+            except ValueError as exc:
+                item["status"] = "scorer_result_invalid"
+                item["validation_error"] = str(exc)
+        write_json_exclusive(item_dir / "score_record.json", item)
+        score_manifest["results"].append(item)
+    write_json_exclusive(output / "score_manifest.json", score_manifest)
+    print(json.dumps({"output": str(output), "snapshot_count": len(selected), "statuses": [item["status"] for item in score_manifest["results"]]}, sort_keys=True))
+    return 0 if all(item["status"] == "completed" for item in score_manifest["results"]) else 1
 
 
 def main() -> int:
@@ -310,15 +524,35 @@ def main() -> int:
     run.add_argument("--reasoning-effort", choices=("low", "medium", "high", "xhigh", "max"), default="medium")
     run.add_argument("--cli", default="codex")
     run.add_argument("--wall-seconds", type=int, default=1800)
-    run.add_argument("--dry-run", action="store_true")
+    preview = run.add_mutually_exclusive_group()
+    preview.add_argument("--dry-run", action="store_true")
+    preview.add_argument("--unscored-preview", action="store_true", help="run a non-eligible exploratory task without incidence scoring")
+    score = sub.add_parser("score", help="score immutable snapshots after the agent has ended")
+    score.add_argument("--run-dir", type=Path, required=True)
+    score.add_argument("--task", type=Path, required=True)
+    score.add_argument("--freeze", type=Path, required=True)
+    score.add_argument("--harness-root", type=Path, required=True)
+    score.add_argument("--spec", type=Path, required=True)
+    score.add_argument("--aiter-source", type=Path, required=True)
+    score.add_argument("--output", type=Path, required=True)
+    score.add_argument("--snapshot", default="all", help="all, final, or one sequence number")
+    score.add_argument("--score-wall-seconds", type=int, default=300)
+    score.add_argument("--build-wall-seconds", type=int, default=180)
+    score.add_argument("--compiler", default="hipcc")
+    score.add_argument("--correctness-only", action="store_true")
+    score.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
     if args.action == "freeze":
         write_json_exclusive(args.output, freeze_payload(args.task.resolve()))
         print(args.output)
         return 0
-    if args.wall_seconds < 1:
-        raise ValueError("wall-seconds must be positive")
-    return run_agent(args)
+    if args.action == "run":
+        if args.wall_seconds < 1:
+            raise ValueError("wall-seconds must be positive")
+        return run_agent(args)
+    if args.score_wall_seconds < 1 or args.build_wall_seconds < 1:
+        raise ValueError("score and build wall times must be positive")
+    return score_snapshots(args)
 
 
 if __name__ == "__main__":

@@ -8,6 +8,7 @@
   "prompt_file": "prompt.md",
   "starter_dir": "starter",
   "harness_revision": "UNSET-DRY-RUN",
+  "task_mode": "no_feedback",
   "visible_checks": [],
   "hidden_checks": [],
   "benchmark": null,

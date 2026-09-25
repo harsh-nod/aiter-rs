@@ -1,5 +1,7 @@
 import argparse
+import hashlib
 import json
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -22,6 +24,8 @@ class RunnerTests(unittest.TestCase):
             "gpu_sku": "MI350X", "target_arch": "gfx950",
             "operator_entry": "example", "prompt_file": "prompt.md",
             "starter_dir": "starter", "harness_revision": "b" * 40,
+            "harness_spec_sha256": "c" * 64, "task_mode": "no_feedback",
+            "build_sources": ["kernel.hip"], "build_flags": ["-O3", "-shared", "-fPIC", "--offload-arch=gfx950"],
             "scored_eligible": True,
         }), encoding="utf-8")
         self.freeze = self.root / "freeze.json"
@@ -46,7 +50,8 @@ class RunnerTests(unittest.TestCase):
     def args(self, dry_run=False):
         return argparse.Namespace(task=self.task, freeze=self.freeze,
             results=self.root / "results", replicate_id="r001", model="fake-model",
-            cli=str(self.fake_cli), wall_seconds=5, reasoning_effort="medium", dry_run=dry_run)
+            cli=str(self.fake_cli), wall_seconds=5, reasoning_effort="medium", dry_run=dry_run,
+            unscored_preview=False)
 
     def test_freeze_rejects_changed_starter(self):
         (self.task_dir / "starter" / "kernel.hip").write_text("// changed\n", encoding="utf-8")
@@ -76,6 +81,24 @@ class RunnerTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "scored_eligible"):
             runner.run_agent(self.args())
 
+    def test_unscored_preview_runs_but_cannot_score(self):
+        task = json.loads(self.task.read_text())
+        task["scored_eligible"] = False
+        task["harness_revision"] = "UNSET-DRY-RUN"
+        task.pop("harness_spec_sha256")
+        self.task.write_text(json.dumps(task), encoding="utf-8")
+        self.freeze.write_text(json.dumps(runner.freeze_payload(self.task)), encoding="utf-8")
+        args = self.args()
+        args.unscored_preview = True
+        self.assertEqual(runner.run_agent(args), 0)
+        run_dir = self.root / "results" / "fixture--v1--r001"
+        manifest = json.loads((run_dir / "manifest.json").read_text())
+        self.assertEqual(manifest["run_purpose"], "unscored_preview")
+        self.assertFalse(manifest["incidence_eligible"])
+        self.assertGreaterEqual(len((run_dir / "snapshots.jsonl").read_text().splitlines()), 2)
+        with self.assertRaisesRegex(ValueError, "cannot enter the scored harness"):
+            runner.score_snapshots(argparse.Namespace(task=self.task, freeze=self.freeze, run_dir=run_dir))
+
     def test_timeout_keeps_failure_record(self):
         self.fake_cli.write_text(
             "#!/usr/bin/env python3\n"
@@ -94,6 +117,111 @@ class RunnerTests(unittest.TestCase):
         status = json.loads((result / "result.json").read_text())
         self.assertEqual(status["status"], "timeout")
         self.assertGreaterEqual(status["snapshot_count"], 2)
+
+    def make_git_repo(self, path):
+        subprocess.run(["git", "init", "-q", str(path)], check=True)
+        subprocess.run(["git", "-C", str(path), "add", "."], check=True)
+        subprocess.run(["git", "-C", str(path), "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-qm", "fixture"], check=True)
+        return subprocess.check_output(["git", "-C", str(path), "rev-parse", "HEAD"], text=True).strip()
+
+    def setup_scorer(self):
+        harness_root = self.root / "trusted-harness"
+        (harness_root / "references").mkdir(parents=True)
+        (harness_root / "harness").mkdir()
+        spec = harness_root / "references" / "spec.json"
+        spec.write_text('{"task_id":"fixture"}\n', encoding="utf-8")
+        (harness_root / "harness" / "__init__.py").write_text("", encoding="utf-8")
+        (harness_root / "harness" / "run.py").write_text(
+            "import argparse, hashlib, json, pathlib, subprocess\n"
+            "p=argparse.ArgumentParser()\n"
+            "for flag in ('spec','candidate','aiter-source','output','task-freeze-sha256','final-tree-sha256'): p.add_argument('--'+flag)\n"
+            "p.add_argument('--correctness-only',action='store_true')\n"
+            "a=p.parse_args()\n"
+            "out=pathlib.Path(a.output); out.mkdir()\n"
+            "result={'task_id':'fixture','aiter_sha':subprocess.check_output(['git','-C',a.aiter_source,'rev-parse','HEAD'],text=True).strip(),"
+            "'spec_sha256':hashlib.sha256(pathlib.Path(a.spec).read_bytes()).hexdigest(),"
+            "'candidate_path_sha256':hashlib.sha256(pathlib.Path(a.candidate).read_bytes()).hexdigest(),"
+            "'task_freeze_sha256':a.task_freeze_sha256,'final_tree_sha256':a.final_tree_sha256,"
+            "'environment':{'gpu_sku':'MI350X'},'joint_pass':False,"
+            "'candidate_exists':pathlib.Path(a.candidate).is_file()}\n"
+            "(out/'result.json').write_text(json.dumps(result))\n",
+            encoding="utf-8",
+        )
+        harness_sha = self.make_git_repo(harness_root)
+        aiter_root = self.root / "aiter"
+        aiter_root.mkdir()
+        (aiter_root / "README.md").write_text("fixture\n", encoding="utf-8")
+        aiter_sha = self.make_git_repo(aiter_root)
+        task = json.loads(self.task.read_text())
+        task["aiter_sha"] = aiter_sha
+        task["harness_revision"] = harness_sha
+        task["harness_spec_sha256"] = hashlib.sha256(spec.read_bytes()).hexdigest()
+        self.task.write_text(json.dumps(task), encoding="utf-8")
+        self.freeze.write_text(json.dumps(runner.freeze_payload(self.task)), encoding="utf-8")
+        compiler = self.root / "fake-hipcc"
+        compiler.write_text(
+            "#!/usr/bin/env python3\n"
+            "import pathlib, sys\n"
+            "if '--version' in sys.argv: print('fake-hipcc 1.0')\n"
+            "else: pathlib.Path(sys.argv[-1]).write_bytes(b'fake ELF')\n",
+            encoding="utf-8",
+        )
+        compiler.chmod(0o755)
+        return harness_root, spec, aiter_root, compiler
+
+    def score_args(self, harness_root, spec, aiter_root, compiler):
+        return argparse.Namespace(task=self.task, freeze=self.freeze,
+            run_dir=self.root / "results" / "fixture--v1--r001",
+            harness_root=harness_root, spec=spec, aiter_source=aiter_root,
+            output=self.root / "scores", snapshot="all", score_wall_seconds=5,
+            build_wall_seconds=5, correctness_only=True, dry_run=False,
+            compiler=str(compiler))
+
+    def test_scores_exported_snapshots_with_trusted_harness(self):
+        harness_root, spec, aiter_root, compiler = self.setup_scorer()
+        self.assertEqual(runner.run_agent(self.args()), 0)
+        self.assertEqual(runner.score_snapshots(self.score_args(harness_root, spec, aiter_root, compiler)), 0)
+        scores = json.loads((self.root / "scores" / "score_manifest.json").read_text())
+        self.assertEqual([item["status"] for item in scores["results"]], ["completed", "completed"])
+        final = self.root / "scores" / "snapshot-000002"
+        self.assertEqual((final / "candidate" / "kernel.hip").read_text(), "// candidate\n")
+        self.assertTrue(json.loads((final / "harness" / "result.json").read_text())["candidate_exists"])
+        self.assertEqual(scores["results"][-1]["binary_sha256"], hashlib.sha256(b"fake ELF").hexdigest())
+
+    def test_refuses_tampered_snapshot_blob(self):
+        harness_root, spec, aiter_root, compiler = self.setup_scorer()
+        self.assertEqual(runner.run_agent(self.args()), 0)
+        run_dir = self.root / "results" / "fixture--v1--r001"
+        final = json.loads((run_dir / "snapshots.jsonl").read_text().splitlines()[-1])
+        (run_dir / "blobs" / final["files"]["kernel.hip"]).write_text("tampered", encoding="utf-8")
+        args = self.score_args(harness_root, spec, aiter_root, compiler)
+        args.snapshot = "final"
+        with self.assertRaisesRegex(ValueError, "blob hash mismatch"):
+            runner.score_snapshots(args)
+
+    def test_compile_timeout_is_recorded_without_invoking_scorer(self):
+        harness_root, spec, aiter_root, compiler = self.setup_scorer()
+        self.assertEqual(runner.run_agent(self.args()), 0)
+        compiler.write_text(
+            "#!/usr/bin/env python3\n"
+            "import sys, time\n"
+            "if '--version' in sys.argv: print('fake-hipcc 1.0')\n"
+            "else: time.sleep(10)\n",
+            encoding="utf-8",
+        )
+        args = self.score_args(harness_root, spec, aiter_root, compiler)
+        args.snapshot = "final"
+        args.build_wall_seconds = 1
+        self.assertEqual(runner.score_snapshots(args), 1)
+        score = json.loads((self.root / "scores" / "snapshot-000002" / "score_record.json").read_text())
+        self.assertEqual(score["status"], "compile_timeout")
+        self.assertFalse((self.root / "scores" / "snapshot-000002" / "harness").exists())
+
+    def test_rejects_mismatched_scorer_result(self):
+        result = self.root / "result.json"
+        result.write_text(json.dumps({"task_id": "wrong", "joint_pass": False, "environment": {}}), encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "task_id mismatch"):
+            runner.validate_harness_result(result, json.loads(self.task.read_text()), "c" * 64, "d" * 64, "e" * 64, "f" * 64)
 
 
 if __name__ == "__main__":
