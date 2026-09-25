@@ -1,0 +1,22 @@
+#include <hip/hip_runtime.h>
+#include <stdint.h>
+
+// dtype: 0 = FP16, 1 = BF16. All pointers address distinct device buffers.
+// Enqueue on stream and return a hipError_t integer; do not synchronize.
+extern "C" int aiter_rs_quant_mxfp4_even(
+    const void* input,
+    void* packed_output,
+    void* scale_output,
+    int64_t rows,
+    int64_t cols,
+    int dtype,
+    void* stream) {
+    (void)input;
+    (void)packed_output;
+    (void)scale_output;
+    (void)rows;
+    (void)cols;
+    (void)dtype;
+    (void)stream;
+    return static_cast<int>(hipErrorNotSupported);
+}
