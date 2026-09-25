@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "task_id": "gfx950.quant_mxfp4.even.noshuffle.v1",
+  "aiter_sha": "868ccf62a0bcad3aa47f92728340ccb37ed4fb39",
+  "gpu_sku": "AMD Instinct MI350X",
+  "target_arch": "gfx950",
+  "plugin": "references.quant_mxfp4",
+  "withheld_cases_sha256": "9002244b278c995dff666027e80d97effce1888c9ab625d20b6d2917c11dd1ef",
+  "threshold_ratio": 1.05,
+  "max_mad_ratio": 0.05,
+  "warmup": 5,
+  "repeats": 20,
+  "cases": [
+    {"id": "f16_edges", "bucket": "small", "visibility": "visible", "rows": 3, "cols": 96, "dtype": "float16", "seed": 2095101, "edges": true},
+    {"id": "f16_medium", "bucket": "medium", "visibility": "visible", "rows": 128, "cols": 1024, "dtype": "float16", "seed": 2095103},
+    {"id": "bf16_large", "bucket": "large", "visibility": "visible", "rows": 256, "cols": 2048, "dtype": "bfloat16", "seed": 2095104}
+  ],
+  "benchmark_case_ids": ["f16_medium", "bf16_large"]
+}
