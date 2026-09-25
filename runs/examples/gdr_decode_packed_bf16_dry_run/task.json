@@ -1,0 +1,15 @@
+{
+  "task_id": "gdr_decode_packed_bf16_preview",
+  "task_revision": "dry-run-v1",
+  "aiter_sha": "868ccf62a0bcad3aa47f92728340ccb37ed4fb39",
+  "gpu_sku": "MI350X",
+  "target_arch": "gfx950",
+  "operator_entry": "aiter.ops.gdr_decode_packed_bf16",
+  "prompt_file": "prompt.md",
+  "starter_dir": "starter",
+  "harness_revision": "UNSET-DRY-RUN",
+  "visible_checks": [],
+  "hidden_checks": [],
+  "benchmark": null,
+  "scored_eligible": false
+}

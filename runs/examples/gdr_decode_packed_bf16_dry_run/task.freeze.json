@@ -1,0 +1,12 @@
+{
+  "aiter_sha": "868ccf62a0bcad3aa47f92728340ccb37ed4fb39",
+  "gpu_sku": "MI350X",
+  "harness_revision": "UNSET-DRY-RUN",
+  "prompt_sha256": "23bcf47516bf8f18481eb9e053cf9943ff806cf43d1bb6ca449535fd54b5afb2",
+  "schema": "aiter-rs-task-freeze-v1",
+  "starter_tree_sha256": "0332a9673a1584e61cdbc59407a8592db76713ab33501bdc47a7a357894f5b2c",
+  "target_arch": "gfx950",
+  "task_id": "gdr_decode_packed_bf16_preview",
+  "task_revision": "dry-run-v1",
+  "task_sha256": "dcc16100e2dfbbd03220e6f8c1cfdf966fe567b34bd784b1f593d853a1b1b3c5"
+}
