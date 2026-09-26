@@ -7,8 +7,12 @@ not a parity result or an agent-error incidence observation.
   `0x75a0`). The container-reported architecture and PCI model matched the
   host report.
 - AITER source: `868ccf62a0bcad3aa47f92728340ccb37ed4fb39`.
-- Public scorer spec SHA256:
+- Public spec raw-file SHA256:
+  `127e3bc54b2fbd312b5b34d3d95526bbc7603e148a854aa3ed5de9ec986a6d61`.
+  The scorer's filename-inclusive spec provenance hash is
   `94a090d850e4017dcf2bf82f19a41a4149e43c7b355a07a9752e95be117063a2`.
+  A second visible-only run on repository revision `a0e62bc` confirmed both
+  hashes and the same case outcomes.
 - Agent final HIP source SHA256:
   `a7b1dc3084ce5cd1edb0e0ea01c1730606ab59acc1439ac9e18023bd174840b5`.
   It compiled for `gfx950` with `hipcc -O3 -shared -fPIC --offload-arch=gfx950`.
