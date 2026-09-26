@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import ctypes
 from dataclasses import dataclass
+from pathlib import Path
 
 
 Q_HEADS = 8
@@ -140,6 +142,18 @@ class GuardedOutput:
             raise ValueError("output guard modified")
 
 
+@dataclass
+class GuardedInput:
+    storage: object
+    expected: object
+
+    def check(self) -> None:
+        import torch
+
+        if not torch.equal(self.storage, self.expected):
+            raise AssertionError("input or input guard modified")
+
+
 def guarded_state(cpu_state, *, slot_padding: bool) -> GuardedState:
     import torch
 
@@ -171,37 +185,49 @@ def guarded_output(batch: int) -> GuardedOutput:
     return GuardedOutput(out.reshape(batch, 1, V_HEADS, V), storage)
 
 
-def _padded_rows(cpu_tensor):
+def _guarded_input(cpu_tensor, *, stride0: int) -> tuple[object, GuardedInput]:
     import torch
 
-    rows, cols = cpu_tensor.shape
-    storage = torch.full((rows, 2, cols), -13.0, dtype=cpu_tensor.dtype, device="cuda")
-    view = storage[:, 0, :]
+    if cpu_tensor.ndim == 2:
+        shape = tuple(cpu_tensor.shape)
+        strides = (stride0, 1)
+        body_elements = shape[0] * stride0
+    elif cpu_tensor.ndim == 1:
+        shape = tuple(cpu_tensor.shape)
+        strides = (stride0,)
+        body_elements = shape[0] * stride0
+    else:
+        raise ValueError("GDR inputs must have one or two dimensions")
+    body_bytes = body_elements * cpu_tensor.element_size()
+    storage = torch.full(
+        (GUARD_BYTES + body_bytes + GUARD_BYTES,),
+        GUARD_VALUE, dtype=torch.uint8, device="cuda",
+    )
+    body = storage[GUARD_BYTES : GUARD_BYTES + body_bytes].view(cpu_tensor.dtype)
+    view = torch.as_strided(body, shape, strides)
     view.copy_(cpu_tensor.to("cuda"))
-    return view, storage[:, 1, :]
+    return view, GuardedInput(storage, storage.clone())
 
 
 def gpu_step_inputs(cpu_inputs: dict, case: dict) -> tuple[dict, list]:
     import torch
 
-    tensors, padding = {}, []
+    tensors, guards = {}, []
     for name in ("mixed_qkv", "a", "b"):
-        if case.get("strided_rows"):
-            tensors[name], guard = _padded_rows(cpu_inputs[name])
-            padding.append(guard)
-        else:
-            tensors[name] = cpu_inputs[name].to("cuda")
+        cols = cpu_inputs[name].shape[1]
+        tensors[name], guard = _guarded_input(
+            cpu_inputs[name], stride0=cols * (2 if case.get("strided_rows") else 1)
+        )
+        guards.append(guard)
     for name in ("dt_bias", "A_log"):
-        tensors[name] = cpu_inputs[name].to("cuda")
-    values = torch.tensor(case["indices"], dtype=torch.int32, device="cuda")
-    if case.get("indices_stride", 1) == 2:
-        storage = torch.full((case["batch"] * 2,), -777, dtype=torch.int32, device="cuda")
-        storage[::2] = values
-        tensors["indices"] = storage[::2]
-        padding.append(storage[1::2])
-    else:
-        tensors["indices"] = values
-    return tensors, padding
+        tensors[name], guard = _guarded_input(cpu_inputs[name], stride0=1)
+        guards.append(guard)
+    cpu_indices = torch.tensor(case["indices"], dtype=torch.int32)
+    tensors["indices"], guard = _guarded_input(
+        cpu_indices, stride0=case.get("indices_stride", 1)
+    )
+    guards.append(guard)
+    return tensors, guards
 
 
 def run_aiter(inputs: dict, state, out):
@@ -213,9 +239,45 @@ def run_aiter(inputs: dict, state, out):
     )
 
 
+class HipCandidate:
+    def __init__(self, launch, library=None):
+        self.library = library
+        self.launch = launch
+        self.launch.argtypes = (
+            [ctypes.c_void_p] * 8 + [ctypes.c_int32] + [ctypes.c_int64] * 5
+            + [ctypes.c_int32, ctypes.c_float, ctypes.c_void_p]
+        )
+        self.launch.restype = ctypes.c_int
+
+    def run(self, inputs: dict, state, out, stream: int) -> None:
+        status = self.launch(
+            *(ctypes.c_void_p(inputs[name].data_ptr()) for name in (
+                "mixed_qkv", "a", "b", "dt_bias", "A_log", "indices",
+            )),
+            ctypes.c_void_p(state.data_ptr()),
+            ctypes.c_void_p(out.data_ptr()),
+            ctypes.c_int32(inputs["mixed_qkv"].shape[0]),
+            ctypes.c_int64(inputs["mixed_qkv"].stride(0)),
+            ctypes.c_int64(inputs["a"].stride(0)),
+            ctypes.c_int64(inputs["b"].stride(0)),
+            ctypes.c_int64(inputs["indices"].stride(0)),
+            ctypes.c_int64(state.stride(0)),
+            ctypes.c_int32(state.shape[0]),
+            ctypes.c_float(SCALE),
+            ctypes.c_void_p(stream),
+        )
+        if status != 0:
+            raise RuntimeError(f"HIP candidate launch returned error {status}")
+
+
+def load_hip_candidate(path: Path) -> HipCandidate:
+    library = ctypes.CDLL(str(path))
+    return HipCandidate(library.aiter_rs_gdr_decode_packed_bf16, library)
+
+
 def compare_step(
     cpu_inputs: dict, indices: list[int], expected_out, expected_state,
-    gpu_inputs: dict, gpu_state: GuardedState, gpu_out: GuardedOutput, padding: list,
+    gpu_inputs: dict, gpu_state: GuardedState, gpu_out: GuardedOutput, input_guards: list,
 ) -> None:
     import torch
 
@@ -239,12 +301,7 @@ def compare_step(
             raise AssertionError(f"input {name} changed")
     if not torch.equal(gpu_inputs["indices"].cpu(), torch.tensor(indices, dtype=torch.int32)):
         raise AssertionError("indices changed")
-    for guard in padding:
-        if guard.dtype == torch.int32:
-            intact = bool(torch.all(guard == -777))
-        else:
-            intact = bool(torch.all(guard == -13.0))
-        if not intact:
-            raise AssertionError("input padding changed")
+    for guard in input_guards:
+        guard.check()
     gpu_state.check()
     gpu_out.check()

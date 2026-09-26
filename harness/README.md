@@ -72,3 +72,46 @@ baseline correctly; `--unscored-preview` labels an agent candidate tested
 only on the visible matrix. Neither mode counts as a scored trial or joint
 parity pass. The raw result contains machine details and withheld case
 IDs; publish only a sanitized summary until the private matrix is retired.
+
+## Stateful GDR correctness pilot
+
+`python3 -m harness.gdr_score` checks a HIP library exporting
+`aiter_rs_gdr_decode_packed_bf16` from
+[`references/gdr_decode_packed_bf16_abi.h`](../references/gdr_decode_packed_bf16_abi.h).
+It runs pinned AITER and the candidate on **separate** guarded input, state,
+and output allocations. Each sequential step is compared independently with
+the CPU state oracle; AITER admission alone never gives the candidate a pass.
+The pilot checks output/state values, invalid-row positive zeros, untouched
+slots, input integrity, and output/state/input-padding guards. It records
+separate AITER and candidate verdicts for every attempted step. The supplied
+HIP starter is intentionally nonfunctional and must fail this scorer.
+
+Build only a frozen source snapshot with the trusted compiler command; never
+execute an agent-provided build script. From a ROCm container with the pinned
+AITER source and host GPU report mounted, a visible-only smoke is:
+
+```sh
+hipcc -O3 -shared -fPIC --offload-arch=gfx950 -I references \
+  /workspace/snapshot/starter.hip -o /workspace/private/libgdr-candidate.so
+python3 -m harness.gdr_score \
+  --spec references/gdr_decode_packed_bf16_gfx950.json \
+  --candidate /workspace/private/libgdr-candidate.so \
+  --aiter-source /workspace/aiter \
+  --host-gpu-report /workspace/private/host-gpu-report.json \
+  --output /workspace/private/gdr-preview-001
+```
+
+The trusted runner may also supply `--withheld-spec` from its private mount;
+the scorer verifies the public SHA256 commitment and requires the result
+directory outside the repository. The private manifest and raw result must
+never enter an agent workspace or Git. This path is **correctness-only** even
+when all cases pass: `scored_agent_candidate=false`, `performance=not_run`, and
+`joint_pass=false`. A vetted HIP baseline, candidate performance buckets, and
+uncontended same-GPU parity measurements are still required for scored
+eligibility. Run the container with one attested MI350X and a bounded timeout.
+The scorer is not a sandbox: `ctypes.CDLL` executes candidate host code with
+the scorer's privileges. Before giving an untrusted candidate private cases,
+disable container networking, deny agent access to the scorer account and raw
+result, and review the native-code isolation boundary. The current pilot
+exercises candidate code only on visible cases; the withheld matrix has been
+readmitted with trusted AITER alone.

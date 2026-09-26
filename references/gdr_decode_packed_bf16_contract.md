@@ -63,8 +63,12 @@ padded input rows and index lanes must remain unchanged.
 The [HIP ABI](gdr_decode_packed_bf16_abi.h) passes element strides and a
 supplied stream with preallocated state/output buffers. The
 [starter](gdr_decode_packed_bf16_starter.hip) is intentionally nonfunctional;
-it is not a vetted HIP baseline. The pinned AITER implementation itself uses
-multiple workgroups over value heads and V tiles, but no inter-workgroup
+it is not a vetted HIP baseline. The
+[candidate scorer](../harness/gdr_score.py) runs AITER and the HIP candidate
+on independent guarded allocations against the same CPU oracle at every
+step. It can report visible-only or visible-plus-withheld correctness, but
+never times the candidate or marks it scored. The pinned AITER implementation
+itself uses multiple workgroups over value heads and V tiles, but no inter-workgroup
 communication inside this kernel. Unique valid slots prevent cross-row state
 races; no forward-progress guarantee is inferred from a passing test.
 
@@ -78,7 +82,9 @@ SSH credential could still read that remote manifest, so genuine hidden-test
 isolation requires removing that credential from scored agent processes or a
 separate inaccessible scoring account.
 
-Before agent scoring, pinned AITER must pass the independent oracle on both
-matrices, a separately vetted HIP baseline or credible parity route must be
-established, and same-device performance buckets must be measured without GPU
-contention. No such latency or parity result is claimed by this task spec.
+Pinned AITER has passed the independent oracle on both matrices. Before
+**scored** agent trials, a separately vetted HIP baseline or credible parity
+route must be established, and same-device performance buckets must be
+measured without GPU contention. A correctness-only HIP pilot pass is not a
+functionality/performance joint pass. No latency or parity result is claimed
+by this task spec.
