@@ -25,3 +25,9 @@ on the target machine, pin a particular supported contract and baseline, and
 record an independent oracle. The [pilot shortlist](../tasks/pilot_candidates.md)
 is the first manual validation pass, with unresolved feasibility marked.
 Count task types only after those checks, not from this file count.
+
+The [selected dispatch tranche](dispatch_tranche.md) adds source-anchored
+wrapper-to-implementation traces and a provisional regime count for six
+pilot families. Run `python3 inventory/validate_dispatch_tranche.py /tmp/aiter`
+to check its anchors and emit machine-readable counts. It remains a selected
+tranche, not a full gfx950 dispatch census.

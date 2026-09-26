@@ -1,0 +1,142 @@
+{
+  "schema_version": 1,
+  "aiter_sha": "868ccf62a0bcad3aa47f92728340ccb37ed4fb39",
+  "scope": "Selected six pilot families only; static source trace, no runtime dispatch observation",
+  "entries": [
+    {
+      "id": "quant_mxfp4",
+      "backend": "HIP",
+      "trace_status": "source_traced",
+      "entry_symbol": "aiter.ops.quant.quant_mxfp4_hip",
+      "implementation": "csrc/kernels/quant_mxfp4.cu::quant_mxfp4_kernel",
+      "evidence": [
+        {"path": "aiter/ops/quant.py", "line": 945, "contains": "def quant_mxfp4_hip"},
+        {"path": "aiter/ops/quant.py", "line": 1015, "contains": "MxScaleRoundModeInt.RoundUp"},
+        {"path": "aiter/ops/quant.py", "line": 1040, "contains": "quant_mxfp4("},
+        {"path": "csrc/include/rocm_ops.hpp", "line": 1789, "contains": "m.def(\"quant_mxfp4\""},
+        {"path": "csrc/kernels/quant_mxfp4.cu", "line": 32, "contains": "__gfx950__"},
+        {"path": "csrc/kernels/quant_mxfp4.cu", "line": 299, "contains": "MxScaleRoundMode::Even"},
+        {"path": "csrc/kernels/quant_mxfp4.cu", "line": 301, "contains": "MxScaleRoundMode::Ceil"}
+      ],
+      "regimes": [
+        {"id": "even_noshuffle", "difference": "Even E8M0 scale rule and FP4 RNE, row-major output", "status": "provisional"},
+        {"id": "ceil_noshuffle", "difference": "Ceil E8M0 scale rule; same layout, different numerical contract", "status": "provisional"}
+      ],
+      "dedupe": "M/K rows and seeds under the same mode/layout are test buckets, not more types"
+    },
+    {
+      "id": "pa_sparse_prefill_a16w16",
+      "backend": "OPUS HIP",
+      "trace_status": "source_traced",
+      "entry_symbol": "aiter.ops.pa_sparse_prefill_opus.pa_sparse_prefill_opus",
+      "implementation": "csrc/include/mla_v4_prefill_opus.h::opus_mla_v4_prefill_a16w16_*_kernel",
+      "evidence": [
+        {"path": "aiter/ops/pa_sparse_prefill_opus.py", "line": 52, "contains": "gfx == \"gfx950\""},
+        {"path": "aiter/ops/pa_sparse_prefill_opus.py", "line": 58, "contains": "def pa_sparse_prefill_gfx950_opus_fwd"},
+        {"path": "aiter/ops/pa_sparse_prefill_opus.py", "line": 103, "contains": "def pa_sparse_prefill_opus"},
+        {"path": "aiter/ops/pa_sparse_prefill_opus.py", "line": 143, "contains": "pa_sparse_prefill_gfx950_opus_fwd"},
+        {"path": "csrc/include/rocm_ops.hpp", "line": 1485, "contains": "pa_sparse_prefill_gfx950_opus_fwd"},
+        {"path": "csrc/include/rocm_ops.hpp", "line": 1486, "contains": "opus_mla_v4_prefill_a16w16_gfx950_fwd"},
+        {"path": "csrc/py_itfs_cu/mla_v4_prefill_opus_kernels.cu", "line": 20, "contains": "opus_mla_v4_prefill_a16w16_gfx950_fwd"},
+        {"path": "csrc/py_itfs_cu/mla_v4_prefill_opus_kernels.cu", "line": 131, "contains": "if(H <= 32)"},
+        {"path": "csrc/include/mla_v4_prefill_opus.h", "line": 1608, "contains": "opus_mla_v4_prefill_a16w16_16mx8_32nx1_kernel"},
+        {"path": "csrc/include/mla_v4_prefill_opus.h", "line": 2106, "contains": "opus_mla_v4_prefill_a16w16_16mx1_16nx4_kernel"}
+      ],
+      "regimes": [
+        {"id": "heads_le_32", "difference": "16mx1_16nx4 launch path for H<=32", "status": "provisional"},
+        {"id": "heads_gt_32", "difference": "16mx8_32nx1 launch path for H>32", "status": "provisional"}
+      ],
+      "dedupe": "CSR row-length and token-count sweeps within one head-layout path are coverage cases"
+    },
+    {
+      "id": "topk_per_row_decode",
+      "backend": "FlyDSL with HIP fallback",
+      "trace_status": "source_traced",
+      "entry_symbol": "aiter.ops.topk.top_k_per_row_decode",
+      "implementation": "aiter/ops/flydsl/kernels/topk/topk_per_row_decode_persistent.py (short) or topk_per_row_decode.py (long)",
+      "evidence": [
+        {"path": "aiter/ops/topk.py", "line": 505, "contains": "\"gfx950\""},
+        {"path": "aiter/ops/topk.py", "line": 613, "contains": "def top_k_per_row_decode"},
+        {"path": "aiter/ops/topk.py", "line": 637, "contains": "_should_use_flydsl_topk_decode"},
+        {"path": "aiter/ops/flydsl/topk/topk_per_row.py", "line": 29, "contains": "_ONE_WORKGROUP_MAX_ROW_WIDTH = 20_000"},
+        {"path": "aiter/ops/flydsl/topk/topk_per_row.py", "line": 363, "contains": "def flydsl_top_k_per_row_decode"},
+        {"path": "aiter/ops/flydsl/topk/topk_per_row.py", "line": 385, "contains": "if width <= _ONE_WORKGROUP_MAX_ROW_WIDTH"},
+        {"path": "aiter/ops/flydsl/kernels/topk/topk_per_row_decode_persistent.py", "line": 38, "contains": "def build_topk_per_row_decode_one_workgroup_module"},
+        {"path": "aiter/ops/flydsl/kernels/topk/topk_per_row_decode.py", "line": 250, "contains": "def build_topk_per_row_decode_module"}
+      ],
+      "regimes": [
+        {"id": "stable_short_one_workgroup", "difference": "Stable tie/order contract; <=20000 width selects one-workgroup algorithm", "status": "provisional"},
+        {"id": "stable_long_multiblock", "difference": "Stable tie/order contract; long rows select chunked multiblock algorithm with workspace", "status": "provisional"},
+        {"id": "unstable_long_multiblock", "difference": "Nonstable tie/order contract; long rows select chunked multiblock algorithm", "status": "provisional"}
+      ],
+      "dedupe": "k and width values inside one algorithm/ordering contract are workload buckets, not separate types"
+    },
+    {
+      "id": "gdr_decode_packed_bf16",
+      "backend": "HIP",
+      "trace_status": "source_traced",
+      "entry_symbol": "aiter.ops.gdr_decode_packed_bf16.gdr_decode_packed_bf16",
+      "implementation": "csrc/kernels/gdr_decode_packed_bf16.cu::gdr_decode_packed_bf16_kernel",
+      "evidence": [
+        {"path": "aiter/ops/gdr_decode_packed_bf16.py", "line": 38, "contains": "def gdr_decode_packed_bf16"},
+        {"path": "aiter/ops/gdr_decode_packed_bf16.py", "line": 62, "contains": "gfx950"},
+        {"path": "csrc/include/rocm_ops.hpp", "line": 2745, "contains": "gdr_decode_packed_bf16"},
+        {"path": "csrc/kernels/gdr_decode_packed_bf16.cu", "line": 96, "contains": "gdr_decode_packed_bf16_kernel"},
+        {"path": "csrc/kernels/gdr_decode_packed_bf16.cu", "line": 312, "contains": "hipLaunchKernelGGL(gdr_decode_packed_bf16_kernel"}
+      ],
+      "regimes": [
+        {"id": "packed_state_update", "difference": "Single-token packed-QKV decode with in-place BF16 V-major state update", "status": "provisional"}
+      ],
+      "dedupe": "Sentinel, batch, stride, and repeated-step inputs test the same state-update contract"
+    },
+    {
+      "id": "mhc_fused_post_pre",
+      "backend": "HIP",
+      "trace_status": "source_traced",
+      "entry_symbol": "aiter.ops.mhc.mhc_fused_post_pre",
+      "implementation": "csrc/kernels/mhc_kernels.cu::mhc_fused_post_pre_gemm_sqrsum_kernel + mhc_pre_big_fuse_kernel",
+      "evidence": [
+        {"path": "aiter/ops/mhc.py", "line": 366, "contains": "def _mhc_fused_config_gfx950_256"},
+        {"path": "aiter/ops/mhc.py", "line": 859, "contains": "def mhc_fused_post_pre"},
+        {"path": "aiter/ops/mhc.py", "line": 908, "contains": "fused_m_upper_bound"},
+        {"path": "aiter/ops/mhc.py", "line": 937, "contains": "force_fused"},
+        {"path": "csrc/pybind/mhc_pybind.cu", "line": 10, "contains": "MHC_PYBIND"},
+        {"path": "csrc/include/rocm_ops.hpp", "line": 2629, "contains": "mhc_fused_post_pre_gemm_sqrsum"},
+        {"path": "csrc/kernels/mhc_kernels.cu", "line": 1002, "contains": "mhc_pre_big_fuse_kernel"},
+        {"path": "csrc/kernels/mhc_kernels.cu", "line": 2543, "contains": "mhc_fused_post_pre_gemm_sqrsum_kernel"}
+      ],
+      "regimes": [
+        {"id": "m_le_1024_fused", "difference": "Fused post/GEMM partial plus pre kernel at gfx950 M<=1024", "status": "provisional"},
+        {"id": "m_gt_1024_split", "difference": "Large-M post/pre implementation selected under force_fused, different stage boundary and split-K policy", "status": "provisional"}
+      ],
+      "dedupe": "M=32,256,1024 within the same fused path are benchmark buckets; packed-BF16 is excluded until traced separately"
+    },
+    {
+      "id": "mega_moe_v2",
+      "backend": "FlyDSL/MORI SHMEM",
+      "trace_status": "partial",
+      "entry_symbol": "aiter.ops.flydsl.kernels.mega_moe.MegaMoEV2.forward",
+      "implementation": "stage1/prepare and stage2 AOT bundle selected by runtime config; final compiled artifact not traced",
+      "evidence": [
+        {"path": "aiter/ops/flydsl/kernels/mega_moe/mega_moe_v2.py", "line": 31, "contains": "class MegaMoEV2"},
+        {"path": "aiter/ops/flydsl/kernels/mega_moe/mega_moe_v2.py", "line": 637, "contains": "def _run_joint"},
+        {"path": "aiter/ops/flydsl/kernels/mega_moe/mega_moe_v2.py", "line": 663, "contains": "def _run_stage2"},
+        {"path": "aiter/ops/flydsl/kernels/mega_moe/mega_moe_config.py", "line": 403, "contains": "fixed_slot_dispatch"},
+        {"path": "aiter/ops/flydsl/kernels/mega_moe/mega_moe_config.py", "line": 405, "contains": "world_size == 8"},
+        {"path": "aiter/ops/flydsl/kernels/mega_moe/mega_moe_stage1.py", "line": 131, "contains": "Compact launches exactly one CTA per CU"}
+      ],
+      "regimes": [
+        {"id": "compact_cross_rank", "difference": "Bounded compact producer/consumer cohort and cross-rank tile-ready protocol", "status": "provisional"},
+        {"id": "fixed_slot_cross_rank", "difference": "Arrival-ticket oversubscribed fixed-slot cohort, requiring 8-rank V4-Pro geometry", "status": "provisional"}
+      ],
+      "dedupe": "Token buckets, seeds, expert-skew inputs, and repeated rank counts within one protocol are not new types; world=1 is not a cross-rank task"
+    }
+  ],
+  "exclusions": [
+    {"id": "shape_and_tuning_rows", "reason": "A shape row, seed, or tuned configuration alone does not change the algorithm or contract"},
+    {"id": "gfx1250_prebuilt_prefill", "reason": "Different architecture and binary-only path; not a gfx950 source task"},
+    {"id": "a4w6_asm", "reason": "gfx950 operator exists, but HIP performance-parity route against assembly is unestablished"},
+    {"id": "pr4975_provider", "reason": "Private binary-only persistent decoder source cannot support a source-level agent kernel study"},
+    {"id": "one_gpu_mega_moe", "reason": "World-size-one run cannot exercise remote P2P release/acquire or cross-rank progress"}
+  ]
+}
