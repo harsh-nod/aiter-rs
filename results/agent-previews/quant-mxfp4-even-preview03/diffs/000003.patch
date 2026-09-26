@@ -1,0 +1,54 @@
+--- a/starter.hip
++++ b/starter.hip
+@@ -18,7 +18,7 @@
+     if (dtype == 0) {
+         return __half2float(reinterpret_cast<const __half*>(input)[idx]);
+     }
+-    return static_cast<float>(reinterpret_cast<const __hip_bfloat16*>(input)[idx]);
++    return static_cast<float>(reinterpret_cast<const hip_bfloat16*>(input)[idx]);
+ }
+ 
+ __device__ __forceinline__ bool load_sign_bit(const void* input, int64_t idx) {
+@@ -71,12 +71,13 @@
+     int64_t groups,
+     int dtype) {
+     constexpr int kThreads = 256;
+-    constexpr int kWavesPerBlock = kThreads / warpSize;
++    constexpr int kWaveSize = 64;
++    constexpr int kWavesPerBlock = kThreads / kWaveSize;
+     constexpr int kGroupsPerWave = 2;
+     constexpr int kGroupsPerBlock = kWavesPerBlock * kGroupsPerWave;
+ 
+-    const int lane = threadIdx.x & (warpSize - 1);
+-    const int wave = threadIdx.x / warpSize;
++    const int lane = threadIdx.x & (kWaveSize - 1);
++    const int wave = threadIdx.x / kWaveSize;
+     const int half = lane >> 5;
+     const int lane_in_group = lane & 31;
+     const int64_t group = (static_cast<int64_t>(blockIdx.x) * kGroupsPerBlock) +
+@@ -88,11 +89,11 @@
+     const bool negative = valid ? load_sign_bit(input, elem) : false;
+     float amax = fabsf(x);
+ 
+-    amax = fmaxf(amax, __shfl_xor(amax, 16, warpSize));
+-    amax = fmaxf(amax, __shfl_xor(amax, 8, warpSize));
+-    amax = fmaxf(amax, __shfl_xor(amax, 4, warpSize));
+-    amax = fmaxf(amax, __shfl_xor(amax, 2, warpSize));
+-    amax = fmaxf(amax, __shfl_xor(amax, 1, warpSize));
++    amax = fmaxf(amax, __shfl_xor(amax, 16, kWaveSize));
++    amax = fmaxf(amax, __shfl_xor(amax, 8, kWaveSize));
++    amax = fmaxf(amax, __shfl_xor(amax, 4, kWaveSize));
++    amax = fmaxf(amax, __shfl_xor(amax, 2, kWaveSize));
++    amax = fmaxf(amax, __shfl_xor(amax, 1, kWaveSize));
+ 
+     int exponent;
+     const uint8_t scale_byte = scale_byte_from_amax(amax, &exponent);
+@@ -104,7 +105,7 @@
+     }
+ 
+     if (valid && ((lane_in_group & 1) == 0)) {
+-        const uint8_t hi = __shfl_down(static_cast<unsigned int>(code), 1, warpSize);
++        const uint8_t hi = __shfl_down(static_cast<unsigned int>(code), 1, kWaveSize);
+         packed_output[group * 16 + (lane_in_group >> 1)] =
+             static_cast<uint8_t>(code | (hi << 4));
+     }

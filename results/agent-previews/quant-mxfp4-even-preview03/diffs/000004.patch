@@ -1,0 +1,72 @@
+--- a/starter.hip
++++ b/starter.hip
+@@ -12,13 +12,6 @@
+     } v;
+     v.f = x;
+     return v.u;
+-}
+-
+-__device__ __forceinline__ float load_as_f32(const void* input, int64_t idx, int dtype) {
+-    if (dtype == 0) {
+-        return __half2float(reinterpret_cast<const __half*>(input)[idx]);
+-    }
+-    return static_cast<float>(reinterpret_cast<const hip_bfloat16*>(input)[idx]);
+ }
+ 
+ __device__ __forceinline__ bool load_sign_bit(const void* input, int64_t idx) {
+@@ -64,12 +57,25 @@
+     return static_cast<uint8_t>(mag | (negative ? 0x8u : 0u));
+ }
+ 
++template <typename T>
++__device__ __forceinline__ float load_as_f32(const void* input, int64_t idx);
++
++template <>
++__device__ __forceinline__ float load_as_f32<__half>(const void* input, int64_t idx) {
++    return __half2float(reinterpret_cast<const __half*>(input)[idx]);
++}
++
++template <>
++__device__ __forceinline__ float load_as_f32<hip_bfloat16>(const void* input, int64_t idx) {
++    return static_cast<float>(reinterpret_cast<const hip_bfloat16*>(input)[idx]);
++}
++
++template <typename T>
+ __global__ __launch_bounds__(256) void quant_mxfp4_even_kernel(
+     const void* __restrict__ input,
+     uint8_t* __restrict__ packed_output,
+     uint8_t* __restrict__ scale_output,
+-    int64_t groups,
+-    int dtype) {
++    int64_t groups) {
+     constexpr int kThreads = 256;
+     constexpr int kWaveSize = 64;
+     constexpr int kWavesPerBlock = kThreads / kWaveSize;
+@@ -85,7 +91,7 @@
+     const bool valid = group < groups;
+     const int64_t elem = group * 32 + lane_in_group;
+ 
+-    const float x = valid ? load_as_f32(input, elem, dtype) : 0.0f;
++    const float x = valid ? load_as_f32<T>(input, elem) : 0.0f;
+     const bool negative = valid ? load_sign_bit(input, elem) : false;
+     float amax = fabsf(x);
+ 
+@@ -137,7 +143,8 @@
+     const dim3 block(kThreads);
+     const dim3 grid(static_cast<unsigned int>((groups + kGroupsPerBlock - 1) / kGroupsPerBlock));
+     hipLaunchKernelGGL(
+-        quant_mxfp4_even_kernel,
++        dtype == 0 ? HIP_KERNEL_NAME(quant_mxfp4_even_kernel<__half>)
++                   : HIP_KERNEL_NAME(quant_mxfp4_even_kernel<hip_bfloat16>),
+         grid,
+         block,
+         0,
+@@ -145,7 +152,6 @@
+         input,
+         reinterpret_cast<uint8_t*>(packed_output),
+         reinterpret_cast<uint8_t*>(scale_output),
+-        groups,
+-        dtype);
++        groups);
+     return static_cast<int>(hipGetLastError());
+ }

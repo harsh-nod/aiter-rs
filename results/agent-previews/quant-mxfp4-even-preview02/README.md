@@ -11,7 +11,9 @@ agent-error incidence denominator and does not establish AITER parity.
 - Final source: `workspace/starter.hip`, SHA256
   `a7b1dc3084ce5cd1edb0e0ea01c1730606ab59acc1439ac9e18023bd174840b5`.
 - Compilation: `hipcc -O3 -shared -fPIC --offload-arch=gfx950` succeeded
-  locally after the agent run. GPU correctness and performance are pending.
+  locally after the agent run. The later
+  [visible-only GPU check](../../2026-09-25-quant-mxfp4-preview02-visible.md)
+  passed three cases; hidden correctness and performance remain untested.
 - Raw evidence: `events.jsonl`, `snapshots.jsonl`, `blobs/`, `diffs/`,
   `manifest.json`, `prompt.txt`, and `result.json`.
 - A first invocation (`preview01`) failed before agent work because an old

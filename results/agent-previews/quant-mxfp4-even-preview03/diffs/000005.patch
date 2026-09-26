@@ -1,0 +1,27 @@
+--- a/starter.hip
++++ b/starter.hip
+@@ -12,6 +12,15 @@
+     } v;
+     v.f = x;
+     return v.u;
++}
++
++__device__ __forceinline__ float f32_pow2_normal(int exponent) {
++    union {
++        uint32_t u;
++        float f;
++    } v;
++    v.u = static_cast<uint32_t>(exponent + 127) << 23;
++    return v.f;
+ }
+ 
+ __device__ __forceinline__ bool load_sign_bit(const void* input, int64_t idx) {
+@@ -103,7 +112,7 @@
+ 
+     int exponent;
+     const uint8_t scale_byte = scale_byte_from_amax(amax, &exponent);
+-    const float inv_scale = __builtin_amdgcn_ldexpf(1.0f, -exponent);
++    const float inv_scale = f32_pow2_normal(-exponent);
+     const uint8_t code = mxfp4_even_code(fabsf(x) * inv_scale, negative);
+ 
+     if (valid && lane_in_group == 0) {
