@@ -1,0 +1,27 @@
+--- a/starter.hip
++++ b/starter.hip
+@@ -110,13 +110,11 @@
+     float u = 0.0f;
+     float w = 0.0f;
+     float t = 0.0f;
+-    float k_vals[128];
+ 
+     for (int32_t k_idx = 0; k_idx < 128; ++k_idx) {
+         const float q_val = bf16_to_float(query[k_idx]) * q_norm;
+         const float k_val = bf16_to_float(key[k_idx]) * k_norm;
+         const float r_val = bf16_to_float(state_row[k_idx]) * decay;
+-        k_vals[k_idx] = k_val;
+         u += r_val * k_val;
+         w += r_val * q_val;
+         t += k_val * q_val;
+@@ -126,8 +124,9 @@
+     out[out_offset] = float_to_bf16(w + z * t);
+ 
+     for (int32_t k_idx = 0; k_idx < 128; ++k_idx) {
++        const float k_val = bf16_to_float(key[k_idx]) * k_norm;
+         const float r_val = bf16_to_float(state_row[k_idx]) * decay;
+-        state_row[k_idx] = float_to_bf16(r_val + z * k_vals[k_idx]);
++        state_row[k_idx] = float_to_bf16(r_val + z * k_val);
+     }
+ }
+ 

@@ -1,0 +1,194 @@
+--- a/starter.hip
++++ b/starter.hip
+@@ -1,7 +1,135 @@
+-// Compilable from-spec HIP starter. It is not a correct kernel or a baseline.
++// Correctness-first HIP implementation for the packed BF16 GDR decode ABI.
+ #include "gdr_decode_packed_bf16_abi.h"
+ 
++#include <hip/hip_bfloat16.h>
+ #include <hip/hip_runtime.h>
++
++namespace {
++
++using bf16 = __hip_bfloat16;
++
++__device__ __forceinline__ float bf16_to_float(bf16 x) {
++    return static_cast<float>(x);
++}
++
++__device__ __forceinline__ bf16 float_to_bf16(float x) {
++    return __float2bfloat16(x);
++}
++
++__device__ __forceinline__ bf16 positive_zero_bf16() {
++    return __ushort_as_bfloat16(static_cast<unsigned short>(0));
++}
++
++__device__ __forceinline__ float sigmoidf_stable(float x) {
++    if (x >= 0.0f) {
++        const float e = expf(-x);
++        return 1.0f / (1.0f + e);
++    }
++    const float e = expf(x);
++    return e / (1.0f + e);
++}
++
++__device__ __forceinline__ float softplusf_stable(float x) {
++    if (x > 20.0f) {
++        return x;
++    }
++    if (x < -20.0f) {
++        return expf(x);
++    }
++    return log1pf(expf(x));
++}
++
++__global__ void gdr_decode_packed_bf16_kernel(
++    const bf16* __restrict__ mixed_qkv,
++    const bf16* __restrict__ a,
++    const bf16* __restrict__ b,
++    const bf16* __restrict__ dt_bias,
++    const float* __restrict__ A_log,
++    const int32_t* __restrict__ indices,
++    bf16* __restrict__ state,
++    bf16* __restrict__ out,
++    int32_t batch,
++    int64_t qkv_row_stride,
++    int64_t a_row_stride,
++    int64_t b_row_stride,
++    int64_t indices_stride,
++    int64_t state_slot_stride,
++    int32_t state_pool_size,
++    float scale) {
++    const int64_t linear = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
++    const int64_t elems_per_row = 32 * 128;
++    const int64_t total = static_cast<int64_t>(batch) * elems_per_row;
++    if (linear >= total) {
++        return;
++    }
++
++    const int32_t row = static_cast<int32_t>(linear / elems_per_row);
++    const int32_t rem = static_cast<int32_t>(linear - static_cast<int64_t>(row) * elems_per_row);
++    const int32_t head = rem / 128;
++    const int32_t v = rem - head * 128;
++    const int64_t out_offset = (static_cast<int64_t>(row) * 32 + head) * 128 + v;
++
++    const int32_t slot = indices[static_cast<int64_t>(row) * indices_stride];
++    if (slot < 0 || slot >= state_pool_size) {
++        out[out_offset] = positive_zero_bf16();
++        return;
++    }
++
++    const int32_t qk_head = head / 4;
++    const bf16* row_qkv = mixed_qkv + static_cast<int64_t>(row) * qkv_row_stride;
++    const bf16* query = row_qkv + qk_head * 128;
++    const bf16* key = row_qkv + 1024 + qk_head * 128;
++    const bf16* value = row_qkv + 2048 + head * 128;
++
++    float q_sum = 0.0f;
++    float k_sum = 0.0f;
++    for (int32_t k_idx = 0; k_idx < 128; ++k_idx) {
++        const float q_raw = bf16_to_float(query[k_idx]);
++        const float k_raw = bf16_to_float(key[k_idx]);
++        q_sum += q_raw * q_raw;
++        k_sum += k_raw * k_raw;
++    }
++
++    const float q_norm = rsqrtf(q_sum + 1.0e-6f) * scale;
++    const float k_norm = rsqrtf(k_sum + 1.0e-6f);
++    const float gate = softplusf_stable(
++        bf16_to_float(a[static_cast<int64_t>(row) * a_row_stride + head]) +
++        bf16_to_float(dt_bias[head]));
++    const float decay = expf(-expf(A_log[head]) * gate);
++    const float beta = bf16_to_float(
++        float_to_bf16(sigmoidf_stable(bf16_to_float(
++            b[static_cast<int64_t>(row) * b_row_stride + head]))));
++
++    bf16* state_row = state +
++        static_cast<int64_t>(slot) * state_slot_stride +
++        static_cast<int64_t>(head) * 16384 +
++        static_cast<int64_t>(v) * 128;
++
++    float u = 0.0f;
++    float w = 0.0f;
++    float t = 0.0f;
++    float k_vals[128];
++
++    for (int32_t k_idx = 0; k_idx < 128; ++k_idx) {
++        const float q_val = bf16_to_float(query[k_idx]) * q_norm;
++        const float k_val = bf16_to_float(key[k_idx]) * k_norm;
++        const float r_val = bf16_to_float(state_row[k_idx]) * decay;
++        k_vals[k_idx] = k_val;
++        u += r_val * k_val;
++        w += r_val * q_val;
++        t += k_val * q_val;
++    }
++
++    const float z = (bf16_to_float(value[v]) - u) * beta;
++    out[out_offset] = float_to_bf16(w + z * t);
++
++    for (int32_t k_idx = 0; k_idx < 128; ++k_idx) {
++        const float r_val = bf16_to_float(state_row[k_idx]) * decay;
++        state_row[k_idx] = float_to_bf16(r_val + z * k_vals[k_idx]);
++    }
++}
++
++}  // namespace
+ 
+ extern "C" int aiter_rs_gdr_decode_packed_bf16(
+     const void* mixed_qkv, const void* a, const void* b, const void* dt_bias,
+@@ -9,22 +137,36 @@
+     int32_t batch, int64_t qkv_row_stride, int64_t a_row_stride,
+     int64_t b_row_stride, int64_t indices_stride, int64_t state_slot_stride,
+     int32_t state_pool_size, float scale, void* stream) {
+-    (void)mixed_qkv;
+-    (void)a;
+-    (void)b;
+-    (void)dt_bias;
+-    (void)A_log;
+-    (void)indices;
+-    (void)state;
+-    (void)out;
+-    (void)batch;
+-    (void)qkv_row_stride;
+-    (void)a_row_stride;
+-    (void)b_row_stride;
+-    (void)indices_stride;
+-    (void)state_slot_stride;
+-    (void)state_pool_size;
+-    (void)scale;
+-    (void)stream;
+-    return static_cast<int>(hipErrorNotSupported);
++    if (batch <= 0) {
++        return static_cast<int>(hipSuccess);
++    }
++
++    constexpr int threads = 256;
++    const int64_t total = static_cast<int64_t>(batch) * 32 * 128;
++    const int blocks = static_cast<int>((total + threads - 1) / threads);
++
++    hipLaunchKernelGGL(
++        gdr_decode_packed_bf16_kernel,
++        dim3(blocks),
++        dim3(threads),
++        0,
++        reinterpret_cast<hipStream_t>(stream),
++        static_cast<const bf16*>(mixed_qkv),
++        static_cast<const bf16*>(a),
++        static_cast<const bf16*>(b),
++        static_cast<const bf16*>(dt_bias),
++        static_cast<const float*>(A_log),
++        indices,
++        static_cast<bf16*>(state),
++        static_cast<bf16*>(out),
++        batch,
++        qkv_row_stride,
++        a_row_stride,
++        b_row_stride,
++        indices_stride,
++        state_slot_stride,
++        state_pool_size,
++        scale);
++
++    return static_cast<int>(hipGetLastError());
+ }

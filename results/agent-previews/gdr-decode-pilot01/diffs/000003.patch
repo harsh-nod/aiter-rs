@@ -1,0 +1,26 @@
+--- a/starter.hip
++++ b/starter.hip
+@@ -6,18 +6,20 @@
+ 
+ namespace {
+ 
+-using bf16 = __hip_bfloat16;
++using bf16 = hip_bfloat16;
+ 
+ __device__ __forceinline__ float bf16_to_float(bf16 x) {
+     return static_cast<float>(x);
+ }
+ 
+ __device__ __forceinline__ bf16 float_to_bf16(float x) {
+-    return __float2bfloat16(x);
++    return bf16(x);
+ }
+ 
+ __device__ __forceinline__ bf16 positive_zero_bf16() {
+-    return __ushort_as_bfloat16(static_cast<unsigned short>(0));
++    bf16 z;
++    z.data = 0;
++    return z;
+ }
+ 
+ __device__ __forceinline__ float sigmoidf_stable(float x) {
