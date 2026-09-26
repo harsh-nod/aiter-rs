@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from harness.core import merge_withheld, read_spec, score_buckets, sha256_path
-from harness.run import _active_gpu_pids
+from harness.run import _active_gpu_pids, _gpu_matches
 from references.quant_mxfp4 import GuardedOutputs, _fp4_code, _scale_even, oracle
 
 
@@ -65,6 +65,11 @@ class CoreTests(unittest.TestCase):
 233685 python3 1 1237176320 0 11
 """
         self.assertEqual(_active_gpu_pids(output), [233685])
+
+    def test_gpu_sku_uses_rocm_product_when_torch_name_empty(self):
+        spec = {"gpu_sku": "AMD Instinct MI350X", "target_arch": "gfx950"}
+        self.assertTrue(_gpu_matches(spec, "", "gfx950:sramecc+:xnack-", "GPU[0]: Card Series: AMD Instinct MI350X"))
+        self.assertFalse(_gpu_matches(spec, "", "gfx950", "GPU[0]: Card Series: AMD Instinct MI355X"))
 
     def test_even_fp4_ties_and_zero_scale(self):
         self.assertEqual(_fp4_code(0.75), 2)

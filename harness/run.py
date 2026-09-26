@@ -35,6 +35,10 @@ def _active_gpu_pids(rocm_smi_output: str) -> list[int]:
     return sorted(set(active))
 
 
+def _gpu_matches(spec: dict, torch_name: str, arch: str, rocm_product: str) -> bool:
+    return spec["gpu_sku"] in (torch_name + "\n" + rocm_product) and spec["target_arch"] in arch
+
+
 def _mismatches(actual: bytes, expected: bytes) -> dict:
     if len(actual) != len(expected):
         return {"pass": False, "expected_bytes": len(expected), "actual_bytes": len(actual)}
@@ -124,8 +128,9 @@ def _gpu_manifest(spec: dict, aiter_source: Path) -> dict:
     props = torch.cuda.get_device_properties(0)
     name = props.name
     arch = getattr(props, "gcnArchName", "")
-    if spec["gpu_sku"] not in name or spec["target_arch"] not in arch:
-        raise RuntimeError(f"GPU mismatch: {name!r}, {arch!r}")
+    product = _command("rocm-smi", "--showproductname")
+    if not _gpu_matches(spec, name, arch, product):
+        raise RuntimeError(f"GPU mismatch: torch name={name!r}, ROCm product={product!r}, arch={arch!r}")
     return {
         "hostname": socket.gethostname(),
         "platform": platform.platform(),
@@ -136,7 +141,7 @@ def _gpu_manifest(spec: dict, aiter_source: Path) -> dict:
         "gpu_name": name,
         "gpu_arch": arch,
         "hipcc_version": _command("hipcc", "--version"),
-        "rocm_product": _command("rocm-smi", "--showproductname"),
+        "rocm_product": product,
         "rocm_clocks": _command("rocm-smi", "--showclocks"),
         "hip_visible_devices": os.environ.get("HIP_VISIBLE_DEVICES"),
         "rocr_visible_devices": os.environ.get("ROCR_VISIBLE_DEVICES"),
