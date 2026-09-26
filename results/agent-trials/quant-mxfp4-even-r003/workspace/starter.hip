@@ -1,0 +1,174 @@
+#include <hip/hip_runtime.h>
+#include <stdint.h>
+
+namespace {
+
+constexpr int kGroupSize = 32;
+constexpr int kGroupsPerBlock = 8;
+constexpr int kThreadsPerBlock = kGroupSize * kGroupsPerBlock;
+
+__device__ __forceinline__ float f32_from_bits(uint32_t bits) {
+    return __uint_as_float(bits);
+}
+
+__device__ __forceinline__ uint32_t bits_from_f32(float value) {
+    return __float_as_uint(value);
+}
+
+__device__ __forceinline__ float half_bits_to_float(uint16_t h) {
+    const uint32_t sign = static_cast<uint32_t>(h & 0x8000u) << 16;
+    const uint32_t exp = (static_cast<uint32_t>(h) >> 10) & 0x1fu;
+    const uint32_t mant = static_cast<uint32_t>(h & 0x03ffu);
+
+    if (exp == 0) {
+        if (mant == 0) {
+            return f32_from_bits(sign);
+        }
+
+        float value = static_cast<float>(mant) * 0x1.0p-24f;
+        return sign ? -value : value;
+    }
+
+    if (exp == 0x1fu) {
+        return f32_from_bits(sign | 0x7f800000u | (mant << 13));
+    }
+
+    return f32_from_bits(sign | ((exp + 112u) << 23) | (mant << 13));
+}
+
+__device__ __forceinline__ float bf16_bits_to_float(uint16_t h) {
+    return f32_from_bits(static_cast<uint32_t>(h) << 16);
+}
+
+__device__ __forceinline__ float input_to_float(uint16_t raw, int dtype) {
+    return dtype == 0 ? half_bits_to_float(raw) : bf16_bits_to_float(raw);
+}
+
+__device__ __forceinline__ int scale_exponent_from_amax(float amax) {
+    const uint32_t r_bits = (bits_from_f32(amax) + 0x00200000u) & 0x7f800000u;
+    if (r_bits == 0) {
+        return -127;
+    }
+
+    int exponent = static_cast<int>((r_bits >> 23) & 0xffu) - 129;
+    if (exponent < -127) {
+        exponent = -127;
+    }
+    if (exponent > 127) {
+        exponent = 127;
+    }
+    return exponent;
+}
+
+__device__ __forceinline__ float scale_from_exponent(int exponent) {
+    if (exponent == -127) {
+        return f32_from_bits(0x00400000u);
+    }
+    return f32_from_bits(static_cast<uint32_t>(exponent + 127) << 23);
+}
+
+__device__ __forceinline__ uint8_t quantize_e2m1_even(float value, uint16_t raw) {
+    const uint8_t sign = (raw & 0x8000u) ? 0x8u : 0u;
+    const float y = fabsf(value);
+
+    uint8_t code;
+    if (y <= 0.25f) {
+        code = 0;
+    } else if (y < 0.75f) {
+        code = 1;
+    } else if (y <= 1.25f) {
+        code = 2;
+    } else if (y < 1.75f) {
+        code = 3;
+    } else if (y <= 2.5f) {
+        code = 4;
+    } else if (y < 3.5f) {
+        code = 5;
+    } else if (y <= 5.0f) {
+        code = 6;
+    } else {
+        code = 7;
+    }
+
+    return sign | code;
+}
+
+__global__ __launch_bounds__(kThreadsPerBlock)
+void quant_mxfp4_even_kernel(const uint16_t* __restrict__ input,
+                             uint8_t* __restrict__ packed_output,
+                             uint8_t* __restrict__ scale_output,
+                             int64_t group_count,
+                             int dtype) {
+    const int tid = threadIdx.x;
+    const int group_in_block = tid / kGroupSize;
+    const int lane = tid & (kGroupSize - 1);
+    const int64_t group = static_cast<int64_t>(blockIdx.x) * kGroupsPerBlock + group_in_block;
+
+    float x = 0.0f;
+    uint16_t raw = 0;
+    if (group < group_count) {
+        raw = input[group * kGroupSize + lane];
+        x = input_to_float(raw, dtype);
+    }
+
+    float amax = fabsf(x);
+    amax = fmaxf(amax, __shfl_down(amax, 16, kGroupSize));
+    amax = fmaxf(amax, __shfl_down(amax, 8, kGroupSize));
+    amax = fmaxf(amax, __shfl_down(amax, 4, kGroupSize));
+    amax = fmaxf(amax, __shfl_down(amax, 2, kGroupSize));
+    amax = fmaxf(amax, __shfl_down(amax, 1, kGroupSize));
+    amax = __shfl(amax, 0, kGroupSize);
+
+    const int exponent = scale_exponent_from_amax(amax);
+    const float scale = scale_from_exponent(exponent);
+
+    if (group < group_count) {
+        if (lane == 0) {
+            scale_output[group] = static_cast<uint8_t>(exponent + 127);
+        }
+
+        const uint8_t code = quantize_e2m1_even(x / scale, raw);
+
+        if (lane < 16) {
+            const uint8_t lo = __shfl(code, lane * 2, kGroupSize) & 0x0fu;
+            const uint8_t hi = __shfl(code, lane * 2 + 1, kGroupSize) & 0x0fu;
+            packed_output[group * 16 + lane] = static_cast<uint8_t>(lo | (hi << 4));
+        }
+    }
+}
+
+}  // namespace
+
+// dtype: 0 = FP16, 1 = BF16. Pointers address distinct device buffers.
+// Enqueue on stream and return a hipError_t integer; do not synchronize.
+extern "C" int aiter_rs_quant_mxfp4_even(
+    const void* input,
+    void* packed_output,
+    void* scale_output,
+    int64_t rows,
+    int64_t cols,
+    int dtype,
+    void* stream) {
+    if (input == nullptr || packed_output == nullptr || scale_output == nullptr ||
+        rows <= 0 || cols <= 0 || (cols & (kGroupSize - 1)) != 0 ||
+        (dtype != 0 && dtype != 1)) {
+        return static_cast<int>(hipErrorInvalidValue);
+    }
+
+    const int64_t group_count = rows * (cols / kGroupSize);
+    const dim3 block(kThreadsPerBlock);
+    const dim3 grid(static_cast<unsigned int>((group_count + kGroupsPerBlock - 1) / kGroupsPerBlock));
+    hipStream_t hip_stream = reinterpret_cast<hipStream_t>(stream);
+
+    hipLaunchKernelGGL(quant_mxfp4_even_kernel,
+                       grid,
+                       block,
+                       0,
+                       hip_stream,
+                       static_cast<const uint16_t*>(input),
+                       static_cast<uint8_t*>(packed_output),
+                       static_cast<uint8_t*>(scale_output),
+                       group_count,
+                       dtype);
+    return static_cast<int>(hipGetLastError());
+}

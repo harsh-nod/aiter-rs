@@ -1,0 +1,90 @@
+--- a/starter.hip
++++ b/starter.hip
+@@ -99,9 +99,6 @@
+                              uint8_t* __restrict__ scale_output,
+                              int64_t group_count,
+                              int dtype) {
+-    __shared__ float shared_amax[kThreadsPerBlock];
+-    __shared__ uint8_t shared_code[kThreadsPerBlock];
+-
+     const int tid = threadIdx.x;
+     const int group_in_block = tid / kGroupSize;
+     const int lane = tid & (kGroupSize - 1);
+@@ -114,47 +111,14 @@
+         x = input_to_float(raw, dtype);
+     }
+ 
+-    shared_amax[tid] = fabsf(x);
+-    __syncthreads();
++    float amax = fabsf(x);
++    amax = fmaxf(amax, __shfl_down(amax, 16, kGroupSize));
++    amax = fmaxf(amax, __shfl_down(amax, 8, kGroupSize));
++    amax = fmaxf(amax, __shfl_down(amax, 4, kGroupSize));
++    amax = fmaxf(amax, __shfl_down(amax, 2, kGroupSize));
++    amax = fmaxf(amax, __shfl_down(amax, 1, kGroupSize));
++    amax = __shfl(amax, 0, kGroupSize);
+ 
+-    if (lane < 16) {
+-        const int other = tid + 16;
+-        if (shared_amax[other] > shared_amax[tid]) {
+-            shared_amax[tid] = shared_amax[other];
+-        }
+-    }
+-    __syncthreads();
+-
+-    if (lane < 8) {
+-        const int other = tid + 8;
+-        if (shared_amax[other] > shared_amax[tid]) {
+-            shared_amax[tid] = shared_amax[other];
+-        }
+-    }
+-    __syncthreads();
+-
+-    if (lane < 4) {
+-        const int other = tid + 4;
+-        if (shared_amax[other] > shared_amax[tid]) {
+-            shared_amax[tid] = shared_amax[other];
+-        }
+-    }
+-    __syncthreads();
+-
+-    if (lane < 2) {
+-        const int other = tid + 2;
+-        if (shared_amax[other] > shared_amax[tid]) {
+-            shared_amax[tid] = shared_amax[other];
+-        }
+-    }
+-    __syncthreads();
+-
+-    if (lane == 0 && shared_amax[tid + 1] > shared_amax[tid]) {
+-        shared_amax[tid] = shared_amax[tid + 1];
+-    }
+-    __syncthreads();
+-
+-    const float amax = shared_amax[group_in_block * kGroupSize];
+     const int exponent = scale_exponent_from_amax(amax);
+     const float scale = scale_from_exponent(exponent);
+ 
+@@ -163,16 +127,13 @@
+             scale_output[group] = static_cast<uint8_t>(exponent + 127);
+         }
+ 
+-        shared_code[tid] = quantize_e2m1_even(x / scale, raw);
+-    } else {
+-        shared_code[tid] = 0;
+-    }
+-    __syncthreads();
++        const uint8_t code = quantize_e2m1_even(x / scale, raw);
+ 
+-    if (group < group_count && lane < 16) {
+-        const uint8_t lo = shared_code[group_in_block * kGroupSize + lane * 2] & 0x0fu;
+-        const uint8_t hi = shared_code[group_in_block * kGroupSize + lane * 2 + 1] & 0x0fu;
+-        packed_output[group * 16 + lane] = static_cast<uint8_t>(lo | (hi << 4));
++        if (lane < 16) {
++            const uint8_t lo = __shfl(code, lane * 2, kGroupSize) & 0x0fu;
++            const uint8_t hi = __shfl(code, lane * 2 + 1, kGroupSize) & 0x0fu;
++            packed_output[group * 16 + lane] = static_cast<uint8_t>(lo | (hi << 4));
++        }
+     }
+ }
+ 

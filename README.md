@@ -35,13 +35,18 @@ See [PLAN.md](PLAN.md) for the protocol and parallel workstreams.
   agent-error incidence denominator. The failure's
   [fe2o3 mapping](results/2026-09-25-fe2o3-wave-shuffle-target.md) is a
   proposed verifier challenge, not a claim of current detection.
-- Two independent frozen no-feedback quant trials have trusted correctness
+- Three independent frozen no-feedback quant trials have trusted correctness
   replays: [r001](results/agent-trials/quant-mxfp4-even-r001/README.md)
-  passed 7/7 cases, while [r002](results/agent-trials/quant-mxfp4-even-r002/README.md)
-  passed 1/7. The r002 agent placed a wave shuffle inside an even-lane branch;
-  a separate [one-line analyst control](results/agent-trials/quant-mxfp4-even-r002/analyst-shuffle-repair-summary.json)
-  passed 7/7 and supports that failure mechanism. The repair is not an agent
-  trial. Neither trial has a performance or joint-parity outcome yet.
+  passed 7/7, while [r002](results/agent-trials/quant-mxfp4-even-r002/README.md)
+  and [r003](results/agent-trials/quant-mxfp4-even-r003/README.md) each passed
+  1/7. In r002, a [one-line analyst control](results/agent-trials/quant-mxfp4-even-r002/analyst-shuffle-repair-summary.json)
+  repaired a divergent shuffle and passed 7/7. In r003, the agent's
+  [pre-optimization snapshot](results/agent-trials/quant-mxfp4-even-r003/snapshot2-analyst-control-summary.json)
+  passed 7/7 before its shuffle rewrite introduced a packed-output failure.
+  Controls are not independent agent trials. None of the three has a
+  performance or joint-parity outcome yet. See the
+  [failure adjudication](analysis/quant-wave-participation.md) for the
+  mechanism and counting limits.
 - The [GDR decode task](references/gdr_decode_packed_bf16_contract.md) has
   an independent stateful CPU oracle. Pinned AITER passed its
   [eight-case correctness matrix](results/2026-09-25-gdr-decode-bf16-baseline-admission.md);

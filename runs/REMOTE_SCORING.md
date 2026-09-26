@@ -3,6 +3,10 @@
 `runs.remote_score` has two stages. `export` verifies a completed capture's
 final tree against its blobs and writes only source plus a provenance manifest.
 It does not export Codex events, prompts, credentials, or the agent workspace.
+For a within-run causal check, `export --snapshot-sequence N` instead selects
+a verified earlier source snapshot and marks the bundle as an **unscored
+analyst control**, retaining the original final tree hash. It cannot be used
+as an independent agent result or incidence observation.
 `score` is run by the trusted operator on the GPU host, outside the agent
 sandbox. It validates source hashes, the exact Docker image ID, clean pinned
 harness/AITER Git trees, public spec hash, private withheld commitment, and

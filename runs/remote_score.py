@@ -42,7 +42,7 @@ def frozen_gpu_sku_matches(frozen: str, spec_name: str, *, scored: bool) -> bool
     return not scored and spec_name.startswith("AMD Instinct ") and frozen == spec_name.removeprefix("AMD Instinct ")
 
 
-def export_bundle(run_dir: Path, output: Path) -> dict:
+def export_bundle(run_dir: Path, output: Path, snapshot_sequence: int | None = None) -> dict:
     run_dir = run_dir.resolve()
     manifest = _read(run_dir / "manifest.json")
     result = _read(run_dir / "result.json")
@@ -60,19 +60,34 @@ def export_bundle(run_dir: Path, output: Path) -> dict:
     if not snapshots or snapshots[-1]["tree_sha256"] != result.get("final_tree_sha256"):
         raise ValueError("final source tree does not match completed capture")
     final = snapshots[-1]
+    if snapshot_sequence is None:
+        selected = final
+    else:
+        selected_matches = [item for item in snapshots if item.get("sequence") == snapshot_sequence]
+        if len(selected_matches) != 1 or snapshot_sequence >= final["sequence"]:
+            raise ValueError("historical snapshot sequence must uniquely precede the final snapshot")
+        selected = selected_matches[0]
+    historical = selected is not final
     output.mkdir(parents=True, exist_ok=False)
-    export_snapshot(run_dir, final, output / "source")
+    export_snapshot(run_dir, selected, output / "source")
     bundle = {
         "schema": "aiter-rs-remote-score-bundle-v1",
         "run_id": manifest["run_id"],
-        "run_purpose": purpose,
-        "incidence_eligible": manifest["incidence_eligible"],
+        "run_purpose": "unscored_preview" if historical else purpose,
+        "incidence_eligible": False if historical else manifest["incidence_eligible"],
         "task_freeze_sha256": manifest["task_freeze_sha256"],
         "task_freeze": freeze,
-        "snapshot_sequence": final["sequence"],
-        "final_tree_sha256": final["tree_sha256"],
-        "source_files": final["files"],
+        "snapshot_sequence": selected["sequence"],
+        "final_tree_sha256": selected["tree_sha256"],
+        "source_files": selected["files"],
     }
+    if historical:
+        bundle.update({
+            "analyst_control": True,
+            "source_selection": "historical_snapshot",
+            "original_run_purpose": purpose,
+            "original_final_tree_sha256": final["tree_sha256"],
+        })
     write_json_exclusive(output / "bundle.json", bundle)
     return bundle
 
@@ -84,6 +99,9 @@ def validate_bundle(bundle_dir: Path) -> dict:
     purpose = bundle.get("run_purpose")
     if purpose not in {"unscored_preview", "scored_trial_capture"} or bundle.get("incidence_eligible") != (purpose == "scored_trial_capture"):
         raise ValueError("invalid source bundle purpose")
+    if bundle.get("analyst_control"):
+        if purpose != "unscored_preview" or bundle.get("source_selection") != "historical_snapshot" or bundle.get("original_run_purpose") not in {"unscored_preview", "scored_trial_capture"}:
+            raise ValueError("invalid historical analyst-control provenance")
     if digest(canonical(bundle["task_freeze"])) != bundle["task_freeze_sha256"]:
         raise ValueError("source bundle freeze hash mismatch")
     files = bundle["source_files"]
@@ -228,6 +246,7 @@ def main() -> int:
     export = sub.add_parser("export")
     export.add_argument("--run-dir", type=Path, required=True)
     export.add_argument("--output", type=Path, required=True)
+    export.add_argument("--snapshot-sequence", type=int, help="export a prior source snapshot as an unscored analyst control")
     score = sub.add_parser("score")
     score.add_argument("--bundle", type=Path, required=True)
     score.add_argument("--harness-root", type=Path, required=True)
@@ -248,7 +267,7 @@ def main() -> int:
     inside.add_argument("--spec-sha256", required=True)
     args = parser.parse_args()
     if args.action == "export":
-        bundle = export_bundle(args.run_dir, args.output)
+        bundle = export_bundle(args.run_dir, args.output, args.snapshot_sequence)
         print(json.dumps({"output": str(args.output), "run_id": bundle["run_id"], "run_purpose": bundle["run_purpose"], "snapshot_sequence": bundle["snapshot_sequence"]}, sort_keys=True))
         return 0
     if args.action == "score":

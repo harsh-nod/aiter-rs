@@ -213,9 +213,11 @@ do not attribute the pre-existing defect to the agent.
   shape/config
   extension of a vetted HIP baseline). Include at least one multi-block
   communication or synchronization challenge.
-- Two agent configurations, three independent seeds each: 36 trajectories.
-  Fix model/version, prompt, tool access, time/token budget, GPU access, and
-  starting revision. This is a feasibility pilot, not a population estimate.
+- Two agent configurations, three fresh independent sessions each: 36
+  trajectories. Record a sampling seed only when the agent runtime exposes a
+  controllable one; the current Codex CLI does not. Fix model/version, prompt,
+  tool access, time/token budget, GPU access, and starting revision. This is a
+  feasibility pilot, not a population estimate.
 - For each challenge, pin a gfx950 AITER comparison and, where needed, a
   correct HIP starting implementation, exact GPU SKU, workload distribution,
   latency measurement procedure, public contract, independent oracle, public
@@ -299,10 +301,11 @@ accepted, abandoned, repaired, or submitted it. Keep raw outputs immutable.
 
 Label **mechanism**, **affected layer**, and **symptom** separately:
 
-- Mechanism: indexing/tail/bounds, layout/stride, alias/race, memory
-  scope/ordering, barrier or persistent progress, state/scratch lifetime,
-  arithmetic/quantization, launch/config/dispatch, compiler/ISA assumption,
-  performance-only regression, or specification misunderstanding.
+- Mechanism: indexing/tail/bounds, layout/stride, alias/race, subgroup
+  participation, memory scope/ordering, barrier or persistent progress,
+  state/scratch lifetime, arithmetic/quantization, launch/config/dispatch,
+  compiler/ISA assumption, performance-only regression, or specification
+  misunderstanding.
 - Layer: kernel source, host wrapper, inter-kernel interface, compiler,
   binary, or serving integration.
 - Symptom: build failure, wrong answer, NaN, OOB/crash, nondeterminism,

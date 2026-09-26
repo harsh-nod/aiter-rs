@@ -74,6 +74,29 @@ class RemoteScoreTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "incidence eligibility disagree"):
             remote_score.export_bundle(self.run, self.root / "bundle")
 
+    def test_historical_snapshot_is_an_unscored_analyst_control(self):
+        original = json.loads((self.run / "snapshots.jsonl").read_text())
+        source = b'extern "C" int example() { return 1; }\n'
+        sha = digest(source)
+        (self.run / "blobs" / sha).write_bytes(source)
+        final_tree = digest(canonical({"kernel.hip": sha}))
+        final = {"sequence": 2, "tree_sha256": final_tree, "files": {"kernel.hip": sha}}
+        (self.run / "snapshots.jsonl").write_text(json.dumps(original) + "\n" + json.dumps(final) + "\n")
+        result = json.loads((self.run / "result.json").read_text())
+        result["final_tree_sha256"] = final_tree
+        (self.run / "result.json").write_text(json.dumps(result))
+
+        bundle_dir = self.root / "bundle"
+        bundle = remote_score.export_bundle(self.run, bundle_dir, snapshot_sequence=1)
+        self.assertEqual(bundle["run_purpose"], "unscored_preview")
+        self.assertFalse(bundle["incidence_eligible"])
+        self.assertTrue(bundle["analyst_control"])
+        self.assertEqual(bundle["original_final_tree_sha256"], final_tree)
+        self.assertEqual(bundle["final_tree_sha256"], original["tree_sha256"])
+        self.assertEqual(remote_score.validate_bundle(bundle_dir), bundle)
+        with self.assertRaisesRegex(ValueError, "uniquely precede"):
+            remote_score.export_bundle(self.run, self.root / "other", snapshot_sequence=2)
+
 
 if __name__ == "__main__":
     unittest.main()

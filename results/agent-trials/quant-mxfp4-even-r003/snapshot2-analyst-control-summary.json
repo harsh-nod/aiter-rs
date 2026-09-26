@@ -1,0 +1,36 @@
+{
+  "schema": "aiter-rs-sanitized-analyst-control-v1",
+  "analysis_kind": "historical_agent_snapshot_replay",
+  "derived_from_run_id": "gfx950.quant_mxfp4.even.noshuffle.v1--no-feedback-v1--r003",
+  "snapshot_sequence": 2,
+  "analyst_control": true,
+  "independent_agent_trial": false,
+  "incidence_eligible": false,
+  "source_raw_sha256": "bce74efce72cbcf0b52b7033aee9c9c4adc4fecb8c4e9eda37600448e39a526b",
+  "source_tree_sha256": "0946893fe07019c75554b481cf1a83dfd2d8eaef24ac8b08c8f24b3b5a6f9bff",
+  "final_agent_source_tree_sha256": "c7ece69794bd4a79b9f73e629308f95113f06c36a28b085351672bb52ab46f22",
+  "binary_raw_sha256": "2976dfc25ea32f85ce20a978dffbf11ae630c56a002dfd736dfe8490fc65c442",
+  "replay_status": "completed",
+  "harness_transport_label": "agent_preview",
+  "correctness": {
+    "status": "pass",
+    "candidate_pass_count": 7,
+    "aiter_baseline_pass_count": 7,
+    "total_cases": 7,
+    "withheld_cases_evaluated": true
+  },
+  "performance": {
+    "status": "not_run",
+    "reason": "correctness_only"
+  },
+  "joint_pass": false,
+  "gpu_sku": "AMD Instinct MI350X",
+  "target_arch": "gfx950",
+  "aiter_sha": "868ccf62a0bcad3aa47f92728340ccb37ed4fb39",
+  "trusted_harness_revision": "5abc535a9f54cb9c85e780abe9e3a9b3c2398f0b",
+  "docker_image_id": "sha256:90885f811fc53d8d03fb6ab6d05b5f0a2c88e277f26f56d19e6b990663a5626b",
+  "public_spec_raw_sha256": "127e3bc54b2fbd312b5b34d3d95526bbc7603e148a854aa3ed5de9ec986a6d61",
+  "task_freeze_sha256": "b28a7b6ad42f4c0d259094553636215acb2c9b481976fec83c1524c68599cf67",
+  "private_result_locator": "mi350-2:aiter-rs-study/scores/quant-r003-snapshot2-correctness-001",
+  "interpretation": "The agent's first compiled source passed the frozen correctness matrix, while its later shuffle-based final source failed. This is a within-run control, not an additional agent trial or a performance result."
+}
