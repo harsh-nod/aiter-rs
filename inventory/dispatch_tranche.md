@@ -34,6 +34,12 @@ denominator. The [hint index](gfx950_source_hints.json) finds 319 source
 files naming gfx950, but includes comments/helpers and omits generic code
 that also runs on gfx950. It cannot be used as a kernel count.
 
+A later [MXFP4 trial](../runs/tasks/quant_mxfp4_even_no_feedback/README.md)
+uses the runner's `scored_eligible` flag to authorize a frozen agent capture
+after baseline correctness admission. That capture gate does not mean this
+registry's regime has completed performance parity or become a new type.
+The registry's zero **parity-admitted** count remains unchanged.
+
 ## Deduplication and exclusions
 
 - The MXFP4 `M,K` grid, RNG seeds, and FP4 threshold cases are tests for one

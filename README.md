@@ -20,8 +20,9 @@ See [PLAN.md](PLAN.md) for the protocol and parallel workstreams.
 
 - [The selected gfx950 registry](inventory/dispatch_tranche.md) traces six
   AITER families and 12 provisional algorithm/contract regimes. This is not
-  a complete census, and **zero types are admitted for scored trials**. There
-  is no evidence-backed route to 10,000 distinct types yet.
+  a complete census; it predates the first frozen quant trial below. No task
+  has a completed joint-parity result, and there is no evidence-backed route
+  to 10,000 distinct types yet.
 - The first [MXFP4 Even task](tasks/quant_mxfp4_even/spec.md) has an
   independent oracle and a HIP reference. A
   [correctness check](results/2026-09-25-quant-mxfp4-baseline-admission.md)
@@ -31,9 +32,12 @@ See [PLAN.md](PLAN.md) for the protocol and parallel workstreams.
   and raw events: [preview 02](results/agent-previews/quant-mxfp4-even-preview02/README.md)
   passed all seven correctness cases in trusted replay, while [preview 03](results/agent-previews/quant-mxfp4-even-preview03/README.md)
   exposed a reproducible divergent wave-shuffle bug. Neither enters an
-  agent-error incidence denominator. Its
+  agent-error incidence denominator. The failure's
   [fe2o3 mapping](results/2026-09-25-fe2o3-wave-shuffle-target.md) is a
   proposed verifier challenge, not a claim of current detection.
+- The first [frozen no-feedback trial](results/agent-trials/quant-mxfp4-even-r001/README.md)
+  also passed all seven correctness cases, including withheld cases, in the
+  trusted scorer. Its performance and joint-parity outcome remain pending.
 - The [GDR decode task](references/gdr_decode_packed_bf16_contract.md) has
   an independent stateful CPU oracle. Pinned AITER passed its
   [eight-case correctness matrix](results/2026-09-25-gdr-decode-bf16-baseline-admission.md);
