@@ -158,7 +158,11 @@ def score_on_host(args: argparse.Namespace) -> int:
     command = ["docker", "run", "--rm", "--network=none", "--pid=host", "--device=/dev/kfd", "--device=/dev/dri", "--group-add", "video", "--entrypoint", "python3", "--workdir", "/workspace/aiter-rs"]
     for source, target, readonly in mounts:
         command.extend(["--mount", f"type=bind,src={source},dst={target}" + (",readonly" if readonly else "")])
-    command.extend(["-e", "PYTHONDONTWRITEBYTECODE=1", "-e", "PYTHONPATH=/workspace/aiter-rs:/workspace/aiter"])
+    command.extend([
+        "-e", "PYTHONDONTWRITEBYTECODE=1", "-e", "PYTHONPATH=/workspace/aiter-rs:/workspace/aiter",
+        "-e", "GIT_CONFIG_COUNT=1", "-e", "GIT_CONFIG_KEY_0=safe.directory",
+        "-e", "GIT_CONFIG_VALUE_0=/workspace/aiter",
+    ])
     for key in ("HIP_VISIBLE_DEVICES", "ROCR_VISIBLE_DEVICES", "CUDA_VISIBLE_DEVICES"):
         command.extend(["-e", f"{key}={args.gpu_index}"])
     command.extend([args.image, "-m", "runs.remote_score", "_inside", "--spec", "/workspace/aiter-rs/" + str(args.spec.relative_to(args.harness_root)), "--spec-sha256", args.spec_sha256, "--bundle", "/workspace/input", "--aiter-source", "/workspace/aiter", "--withheld-spec", "/workspace/private/withheld.json", "--host-gpu-report", "/workspace/private/host-report.json", "--output", "/workspace/output"])
