@@ -26,7 +26,10 @@ def sha256_path(path: Path) -> str:
 
 def read_spec(path: Path) -> dict:
     spec = json.loads(path.read_text(encoding="utf-8"))
-    required = ("schema_version", "task_id", "aiter_sha", "gpu_sku", "target_arch", "plugin", "cases")
+    required = (
+        "schema_version", "task_id", "aiter_sha", "gpu_sku", "gpu_pci_device_id",
+        "target_arch", "plugin", "cases",
+    )
     missing = [key for key in required if key not in spec]
     if missing:
         raise ValueError(f"missing spec keys: {', '.join(missing)}")

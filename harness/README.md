@@ -27,6 +27,13 @@ reports `visible_pass`, never full correctness parity. Scored results and the
 private case manifest remain runner-only until the trial is closed and reviewed
 for safe release; stdout contains summary statuses, not hidden inputs.
 
+Before starting the container, the trusted host runner captures an exact GPU
+report with `python3 -m harness.host_probe --output <new-private-path>`. Pass
+that read-only file to the scorer with `--host-gpu-report`. This is required
+when a container reports `Card Series: N/A`; the scorer still cross-checks
+the container's PCI model and `gfx950` architecture. The report must stay in
+runner-owned storage, not the agent workspace.
+
 From the repository root inside a ROCm container with PyTorch and the pinned
 AITER source mounted:
 
@@ -37,6 +44,7 @@ python3 -m harness.run \
   --spec references/quant_mxfp4_gfx950.json \
   --candidate /tmp/libquant-baseline.so \
   --aiter-source /workspace/aiter \
+  --host-gpu-report /workspace/host-gpu-report.json \
   --output /tmp/quant-baseline-smoke-001 \
   --correctness-only --unscored-reference
 ```
@@ -57,6 +65,8 @@ hashes, GPU SKU/architecture, ROCm environment, each correctness case, raw
 latency samples, noise qualification, and separate functionality/performance/
 joint status. `--task-freeze-sha256` and `--final-tree-sha256` preserve the
 runner's frozen task and agent-source provenance; they are not substitutes for
-the scorer's binary hash. `--unscored-reference` labels the supplied HIP
+the scorer's binary hash. For scored attempts, also supply
+`--withheld-spec /workspace/private/quant_mxfp4_withheld.json` from a runner-only,
+read-only mount. `--unscored-reference` labels the supplied HIP
 baseline correctly. The raw result contains machine details and withheld case
 IDs; publish only a sanitized summary until the private matrix is retired.

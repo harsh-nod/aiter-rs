@@ -35,7 +35,8 @@ class CoreTests(unittest.TestCase):
             path = Path(temporary) / "spec.json"
             path.write_text(json.dumps({
                 "schema_version": 1, "task_id": "test", "aiter_sha": "a" * 40,
-                "gpu_sku": "MI350X", "target_arch": "gfx950", "plugin": "references.foo",
+                "gpu_sku": "MI350X", "gpu_pci_device_id": "0x75a0",
+                "target_arch": "gfx950", "plugin": "references.foo",
                 "withheld_cases_sha256": "b" * 64,
                 "cases": [{"id": "x", "visibility": "visible"}, {"id": "x", "visibility": "visible"}],
             }))
@@ -67,9 +68,12 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(_active_gpu_pids(output), [233685])
 
     def test_gpu_sku_uses_rocm_product_when_torch_name_empty(self):
-        spec = {"gpu_sku": "AMD Instinct MI350X", "target_arch": "gfx950"}
-        self.assertTrue(_gpu_matches(spec, "", "gfx950:sramecc+:xnack-", "GPU[0]: Card Series: AMD Instinct MI350X"))
-        self.assertFalse(_gpu_matches(spec, "", "gfx950", "GPU[0]: Card Series: AMD Instinct MI355X"))
+        spec = {"gpu_sku": "AMD Instinct MI350X", "gpu_pci_device_id": "0x75a0", "target_arch": "gfx950"}
+        self.assertTrue(_gpu_matches(spec, "", "gfx950:sramecc+:xnack-", "GPU[0]: Card Series: AMD Instinct MI350X; Card Model: 0x75a0", None))
+        self.assertFalse(_gpu_matches(spec, "", "gfx950", "GPU[0]: Card Series: AMD Instinct MI355X; Card Model: 0x75a0", None))
+        host = {"gpu_name": "AMD Instinct MI350X", "card_model": "0x75a0", "arch": "gfx950"}
+        self.assertTrue(_gpu_matches(spec, "", "gfx950:sramecc+:xnack-", "GPU[0]: Card Model: 0x75a0", host))
+        self.assertFalse(_gpu_matches(spec, "", "gfx950", "GPU[0]: Card Model: 0x75a1", host))
 
     def test_even_fp4_ties_and_zero_scale(self):
         self.assertEqual(_fp4_code(0.75), 2)

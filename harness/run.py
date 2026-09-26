@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import importlib
 import json
 import os
@@ -35,8 +36,18 @@ def _active_gpu_pids(rocm_smi_output: str) -> list[int]:
     return sorted(set(active))
 
 
-def _gpu_matches(spec: dict, torch_name: str, arch: str, rocm_product: str) -> bool:
-    return spec["gpu_sku"] in (torch_name + "\n" + rocm_product) and spec["target_arch"] in arch
+def _gpu_matches(spec: dict, torch_name: str, arch: str, rocm_product: str, host_report: dict | None) -> bool:
+    if spec["target_arch"] not in arch or spec["gpu_pci_device_id"] not in rocm_product:
+        return False
+    if spec["gpu_sku"] in (torch_name + "\n" + rocm_product):
+        return True
+    return bool(
+        host_report
+        and host_report.get("gpu_name") == spec["gpu_sku"]
+        and host_report.get("card_model") == spec["gpu_pci_device_id"]
+        and host_report.get("arch") == spec["target_arch"]
+        and spec["gpu_pci_device_id"] in rocm_product
+    )
 
 
 def _mismatches(actual: bytes, expected: bytes) -> dict:
@@ -117,7 +128,7 @@ def _benchmark_case(plugin, candidate, case: dict, warmup: int, repeats: int) ->
     return {"aiter_ms": aiter, "candidate_ms": proposed}
 
 
-def _gpu_manifest(spec: dict, aiter_source: Path) -> dict:
+def _gpu_manifest(spec: dict, aiter_source: Path, host_report_path: Path | None) -> dict:
     import aiter
     import torch
 
@@ -129,7 +140,8 @@ def _gpu_manifest(spec: dict, aiter_source: Path) -> dict:
     name = props.name
     arch = getattr(props, "gcnArchName", "")
     product = _command("rocm-smi", "--showproductname")
-    if not _gpu_matches(spec, name, arch, product):
+    host_report = json.loads(host_report_path.read_text()) if host_report_path else None
+    if not _gpu_matches(spec, name, arch, product, host_report):
         raise RuntimeError(f"GPU mismatch: torch name={name!r}, ROCm product={product!r}, arch={arch!r}")
     return {
         "hostname": socket.gethostname(),
@@ -142,6 +154,9 @@ def _gpu_manifest(spec: dict, aiter_source: Path) -> dict:
         "gpu_arch": arch,
         "hipcc_version": _command("hipcc", "--version"),
         "rocm_product": product,
+        "host_gpu_report_sha256": hashlib.sha256(host_report_path.read_bytes()).hexdigest() if host_report_path else None,
+        "host_gpu_name": host_report["gpu_name"] if host_report else None,
+        "host_card_model": host_report["card_model"] if host_report else None,
         "rocm_clocks": _command("rocm-smi", "--showclocks"),
         "hip_visible_devices": os.environ.get("HIP_VISIBLE_DEVICES"),
         "rocr_visible_devices": os.environ.get("ROCR_VISIBLE_DEVICES"),
@@ -178,7 +193,7 @@ def _run(args, spec: dict, candidate_path: Path, source: Path) -> dict:
     sys.path.insert(0, str(source))
     plugin = importlib.import_module(spec["plugin"])
     candidate = plugin.load_hip_candidate(candidate_path)
-    result["environment"] = _gpu_manifest(spec, source)
+    result["environment"] = _gpu_manifest(spec, source, args.host_gpu_report)
 
     cases = []
     for case in spec["cases"]:
@@ -241,6 +256,7 @@ def main() -> int:
     parser.add_argument("--candidate", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--aiter-source", required=True, type=Path)
+    parser.add_argument("--host-gpu-report", type=Path, help="trusted host-side ROCm GPU report")
     parser.add_argument("--withheld-spec", type=Path, help="private runner-only case manifest")
     parser.add_argument("--correctness-only", action="store_true")
     parser.add_argument("--unscored-reference", action="store_true", help="do not count a HIP reference as an agent attempt")
@@ -250,6 +266,8 @@ def main() -> int:
     args.spec = args.spec.resolve()
     args.candidate = args.candidate.resolve()
     args.aiter_source = args.aiter_source.resolve()
+    if args.host_gpu_report:
+        args.host_gpu_report = args.host_gpu_report.resolve()
     spec = read_spec(args.spec)
     if args.withheld_spec:
         args.withheld_spec = args.withheld_spec.resolve()
