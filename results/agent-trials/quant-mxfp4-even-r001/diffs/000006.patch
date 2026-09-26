@@ -1,0 +1,24 @@
+--- a/starter.hip
++++ b/starter.hip
+@@ -27,8 +27,8 @@
+     if constexpr (!IsBf16) {
+         return __half2float(reinterpret_cast<const __half*>(input)[index]);
+     } else {
+-    const uint16_t raw = reinterpret_cast<const uint16_t*>(input)[index];
+-    return bits_to_float(static_cast<uint32_t>(raw) << 16);
++        const uint16_t raw = reinterpret_cast<const uint16_t*>(input)[index];
++        return bits_to_float(static_cast<uint32_t>(raw) << 16);
+     }
+ }
+ 
+@@ -138,8 +138,8 @@
+ 
+         const int64_t idx0 = row_offset + col0;
+         const int64_t idx1 = row_offset + col1;
+-        const float mag0 = fabsf(load_value<IsBf16>(input, idx0)) * inv_scale;
+-        const float mag1 = fabsf(load_value<IsBf16>(input, idx1)) * inv_scale;
++        const float mag0 = abs_values[col0] * inv_scale;
++        const float mag1 = abs_values[col1] * inv_scale;
+         const uint8_t q0 = quantize_mxfp4_even(mag0, load_sign_bit(input, idx0));
+         const uint8_t q1 = quantize_mxfp4_even(mag1, load_sign_bit(input, idx1));
+ 

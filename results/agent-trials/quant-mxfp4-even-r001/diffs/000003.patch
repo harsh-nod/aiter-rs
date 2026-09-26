@@ -1,0 +1,81 @@
+--- a/starter.hip
++++ b/starter.hip
+@@ -22,13 +22,14 @@
+     return v.u;
+ }
+ 
+-__device__ __forceinline__ float load_value(const void* input, int64_t index, int dtype) {
+-    if (dtype == 0) {
++template <bool IsBf16>
++__device__ __forceinline__ float load_value(const void* input, int64_t index) {
++    if constexpr (!IsBf16) {
+         return __half2float(reinterpret_cast<const __half*>(input)[index]);
+-    }
+-
++    } else {
+     const uint16_t raw = reinterpret_cast<const uint16_t*>(input)[index];
+     return bits_to_float(static_cast<uint32_t>(raw) << 16);
++    }
+ }
+ 
+ __device__ __forceinline__ uint8_t load_sign_bit(const void* input, int64_t index) {
+@@ -49,6 +50,14 @@
+         exponent = 127;
+     }
+     return exponent;
++}
++
++__device__ __forceinline__ float pow2_int(int exponent) {
++    if (exponent >= -126) {
++        return bits_to_float(static_cast<uint32_t>(exponent + 127) << 23);
++    }
++
++    return bits_to_float(1u << static_cast<uint32_t>(exponent + 149));
+ }
+ 
+ __device__ __forceinline__ uint8_t quantize_mxfp4_even(float magnitude, uint8_t sign_bit) {
+@@ -75,13 +84,13 @@
+     return static_cast<uint8_t>(code | sign_bit);
+ }
+ 
++template <bool IsBf16>
+ __global__ __launch_bounds__(256) void quant_mxfp4_even_kernel(
+     const void* __restrict__ input,
+     uint8_t* __restrict__ packed_output,
+     uint8_t* __restrict__ scale_output,
+     int64_t rows,
+-    int64_t cols,
+-    int dtype) {
++    int64_t cols) {
+     const int64_t row = static_cast<int64_t>(blockIdx.x);
+     if (row >= rows) {
+         return;
+@@ -99,7 +108,7 @@
+     const int64_t row_offset = row * cols;
+ 
+     for (int col = tid; col < cols; col += blockDim.x) {
+-        const float value = load_value(input, row_offset + col, dtype);
++        const float value = load_value<IsBf16>(input, row_offset + col);
+         abs_values[col] = fabsf(value);
+     }
+ 
+@@ -116,7 +125,7 @@
+         const int exponent = compute_exponent(amax);
+         scale_output[row * static_cast<int64_t>(groups) + group] =
+             static_cast<uint8_t>(exponent + 127);
+-        inv_scales[group] = exp2f(static_cast<float>(-exponent));
++        inv_scales[group] = pow2_int(-exponent);
+     }
+ 
+     __syncthreads();
+@@ -129,8 +138,8 @@
+ 
+         const int64_t idx0 = row_offset + col0;
+         const int64_t idx1 = row_offset + col1;
+-        const float mag0 = fabsf(load_value(input, idx0, dtype)) * inv_scale;
+-        const float mag1 = fabsf(load_value(input, idx1, dtype)) * inv_scale;
++        const float mag0 = fabsf(load_value<IsBf16>(input, idx0)) * inv_scale;
++        const float mag1 = fabsf(load_value<IsBf16>(input, idx1)) * inv_scale;
+         const uint8_t q0 = quantize_mxfp4_even(mag0, load_sign_bit(input, idx0));
+         const uint8_t q1 = quantize_mxfp4_even(mag1, load_sign_bit(input, idx1));
+ 
