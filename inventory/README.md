@@ -31,3 +31,9 @@ wrapper-to-implementation traces and a provisional regime count for six
 pilot families. Run `python3 inventory/validate_dispatch_tranche.py /tmp/aiter`
 to check its anchors and emit machine-readable counts. It remains a selected
 tranche, not a full gfx950 dispatch census.
+
+The [Python route discovery census](python_route_census.md) now scans all
+`aiter/ops/**/*.py` module-level symbols, including generic operators that
+the gfx950 text search omits. Its generated index marks 8 static source
+reviews and 2,413 unreviewed symbols separately. Neither number is a
+dispatchable-kernel count or a task-type denominator.

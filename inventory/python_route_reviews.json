@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "aiter_sha": "868ccf62a0bcad3aa47f92728340ccb37ed4fb39",
+  "scope": "Eight selected Python entries only; manual static review, not runtime validation",
+  "reviews": [
+    {
+      "id": "quant_mxfp4",
+      "key": "aiter/ops/quant.py::quant_mxfp4_hip",
+      "tranche_id": "quant_mxfp4",
+      "trace_confidence": "static_path",
+      "source_visibility": "visible_native_source",
+      "architecture_scope": "gfx950_specialized",
+      "backend_routes": [{"backend": "HIP", "condition": "gfx950 quant_mxfp4 HIP entry; Even/Ceil branches traced in tranche"}]
+    },
+    {
+      "id": "pa_sparse_prefill_a16w16",
+      "key": "aiter/ops/pa_sparse_prefill_opus.py::pa_sparse_prefill_opus",
+      "tranche_id": "pa_sparse_prefill_a16w16",
+      "trace_confidence": "static_path",
+      "source_visibility": "visible_native_source",
+      "architecture_scope": "gfx950_specialized",
+      "backend_routes": [{"backend": "OPUS HIP", "condition": "gfx950 branch; H<=32 and H>32 kernels traced in tranche"}]
+    },
+    {
+      "id": "topk_per_row_decode",
+      "key": "aiter/ops/topk.py::top_k_per_row_decode",
+      "tranche_id": "topk_per_row_decode",
+      "trace_confidence": "static_path",
+      "source_visibility": "visible_mixed_source",
+      "architecture_scope": "generic_wrapper_gfx950_selected",
+      "backend_routes": [
+        {"backend": "FlyDSL", "condition": "gfx950 supported cases; short/long branch traced in tranche"},
+        {"backend": "HIP fallback", "condition": "cases not selected for FlyDSL"}
+      ]
+    },
+    {
+      "id": "gdr_decode_packed_bf16",
+      "key": "aiter/ops/gdr_decode_packed_bf16.py::gdr_decode_packed_bf16",
+      "tranche_id": "gdr_decode_packed_bf16",
+      "trace_confidence": "static_path",
+      "source_visibility": "visible_native_source",
+      "architecture_scope": "gfx950_only",
+      "backend_routes": [{"backend": "HIP", "condition": "wrapper rejects non-gfx950"}]
+    },
+    {
+      "id": "mhc_fused_post_pre",
+      "key": "aiter/ops/mhc.py::mhc_fused_post_pre",
+      "tranche_id": "mhc_fused_post_pre",
+      "trace_confidence": "static_path",
+      "source_visibility": "visible_native_source",
+      "architecture_scope": "generic_wrapper_gfx950_specialized",
+      "backend_routes": [{"backend": "HIP", "condition": "gfx950 fused or large-M split selected by runtime M and force_fused"}]
+    },
+    {
+      "id": "mega_moe_v2",
+      "key": "aiter/ops/flydsl/kernels/mega_moe/mega_moe_v2.py::MegaMoEV2",
+      "tranche_id": "mega_moe_v2",
+      "trace_confidence": "partial_static_path",
+      "source_visibility": "visible_dsl_runtime_artifact_unverified",
+      "architecture_scope": "multi_gpu_gfx950_candidate",
+      "backend_routes": [{"backend": "FlyDSL/MORI SHMEM", "condition": "runtime stage1/stage2 AOT selection remains unverified"}]
+    },
+    {
+      "id": "rms_norm",
+      "key": "aiter/ops/rmsnorm.py::rms_norm",
+      "trace_confidence": "static_path",
+      "source_visibility": "visible_mixed_source",
+      "architecture_scope": "generic_usable_on_gfx950",
+      "backend_routes": [
+        {"backend": "HIP", "condition": "2-D FP16/BF16, hidden<=8192, non-model-sensitive"},
+        {"backend": "OPUS native", "condition": "other supported inputs, including FP32/T5/hidden>8192"}
+      ],
+      "evidence": [
+        {"path": "aiter/ops/rmsnorm.py", "line": 388, "contains": "def _use_hip_common"},
+        {"path": "aiter/ops/rmsnorm.py", "line": 401, "contains": "def _rms_norm_fwd_dispatch"},
+        {"path": "aiter/ops/rmsnorm.py", "line": 416, "contains": "def rms_norm"},
+        {"path": "aiter/ops/rmsnorm.py", "line": 625, "contains": "@compile_ops"},
+        {"path": "csrc/include/rocm_ops.hpp", "line": 2543, "contains": "m.def(\"rmsnorm\""},
+        {"path": "csrc/kernels/rmsnorm_quant_kernels.cu", "line": 620, "contains": "void rmsnorm("},
+        {"path": "csrc/kernels/rmsnorm/rmsnorm_opus_norm_entry.cu", "line": 25, "contains": "rms_norm_opus"}
+      ]
+    },
+    {
+      "id": "rope_fwd",
+      "key": "aiter/ops/rope.py::rope_fwd",
+      "trace_confidence": "static_path",
+      "source_visibility": "visible_native_source",
+      "architecture_scope": "generic_usable_on_gfx950",
+      "backend_routes": [{"backend": "HIP", "condition": "generic uncached 1c forward path; no explicit gfx950 branch in wrapper"}],
+      "evidence": [
+        {"path": "aiter/ops/rope.py", "line": 11, "contains": "@compile_ops"},
+        {"path": "aiter/ops/rope.py", "line": 12, "contains": "def rope_fwd_impl"},
+        {"path": "aiter/ops/rope.py", "line": 365, "contains": "def rope_fwd"},
+        {"path": "csrc/include/rocm_ops.hpp", "line": 1926, "contains": "rope_fwd_impl"},
+        {"path": "csrc/kernels/rope/general_1c_uncached_fwd_kernels.cu", "line": 7, "contains": "void rope_fwd_impl"}
+      ]
+    }
+  ]
+}

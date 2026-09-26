@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AITER Python route discovery index",
+  "type": "object",
+  "required": ["schema_version", "aiter_sha", "scope", "warning", "coverage", "entries"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "aiter_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "scope": {"type": "string"},
+    "warning": {"type": "string"},
+    "coverage": {
+      "type": "object",
+      "required": [
+        "python_modules_scanned", "parse_errors", "excluded_private_nondecorated_symbols",
+        "indexed_symbols", "public_symbols", "ops_facade_module_symbols",
+        "nested_ops_module_symbols", "private_compile_ops_stubs", "reviewed_symbols",
+        "unreviewed_symbols", "backend_hint_counts", "gfx950_text_hint_symbols"
+      ],
+      "properties": {
+        "python_modules_scanned": {"type": "integer", "minimum": 0},
+        "parse_errors": {"type": "array"},
+        "excluded_private_nondecorated_symbols": {"type": "integer", "minimum": 0},
+        "indexed_symbols": {"type": "integer", "minimum": 0},
+        "public_symbols": {"type": "integer", "minimum": 0},
+        "ops_facade_module_symbols": {"type": "integer", "minimum": 0},
+        "nested_ops_module_symbols": {"type": "integer", "minimum": 0},
+        "private_compile_ops_stubs": {"type": "integer", "minimum": 0},
+        "reviewed_symbols": {"type": "integer", "minimum": 0},
+        "unreviewed_symbols": {"type": "integer", "minimum": 0},
+        "backend_hint_counts": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+        "gfx950_text_hint_symbols": {"type": "integer", "minimum": 0}
+      }
+    },
+    "entries": {"type": "array", "items": {"$ref": "#/$defs/entry"}}
+  },
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "required": [
+        "key", "path", "symbol", "line", "kind", "visibility", "entry_scope",
+        "backend_hints", "backend_named_calls", "gfx950_text_hint",
+        "arch_dispatch_text_hint", "review_status", "trace_confidence",
+        "source_visibility"
+      ],
+      "properties": {
+        "key": {"type": "string"},
+        "path": {"type": "string"},
+        "symbol": {"type": "string"},
+        "line": {"type": "integer", "minimum": 1},
+        "kind": {"enum": ["function", "class"]},
+        "visibility": {"enum": ["public", "private_binding_stub"]},
+        "entry_scope": {"enum": ["ops_facade_module", "nested_ops_module"]},
+        "backend_hints": {"type": "array", "items": {"type": "string"}},
+        "backend_named_calls": {"type": "array", "items": {"type": "string"}},
+        "gfx950_text_hint": {"type": "boolean"},
+        "arch_dispatch_text_hint": {"type": "boolean"},
+        "review_status": {"enum": ["reviewed", "unreviewed"]},
+        "trace_confidence": {"enum": ["none", "static_path", "partial_static_path"]},
+        "source_visibility": {"type": "string"},
+        "native_binding": {
+          "type": "object",
+          "required": ["module", "export"],
+          "properties": {
+            "module": {"type": ["string", "null"]},
+            "export": {"type": "string"}
+          }
+        },
+        "review_id": {"type": "string"},
+        "tranche_id": {"type": "string"},
+        "architecture_scope": {"type": "string"},
+        "backend_routes": {"type": "array", "minItems": 1}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"review_status": {"const": "reviewed"}}},
+          "then": {
+            "required": ["review_id", "architecture_scope", "backend_routes"],
+            "properties": {
+              "trace_confidence": {"enum": ["static_path", "partial_static_path"]},
+              "source_visibility": {"not": {"const": "unknown"}}
+            }
+          }
+        },
+        {
+          "if": {"properties": {"review_status": {"const": "unreviewed"}}},
+          "then": {
+            "properties": {
+              "trace_confidence": {"const": "none"},
+              "source_visibility": {"const": "unknown"}
+            }
+          }
+        }
+      ]
+    }
+  }
+}
