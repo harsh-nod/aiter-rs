@@ -3,6 +3,7 @@ import hashlib
 import json
 import os
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -59,6 +60,14 @@ class RunnerTests(unittest.TestCase):
         (self.task_dir / "starter" / "kernel.hip").write_text("// changed\n", encoding="utf-8")
         with self.assertRaisesRegex(ValueError, "changed since freeze"):
             runner.run_agent(self.args())
+
+    def test_documented_script_entrypoint_freezes_task(self):
+        output = self.root / "script-freeze.json"
+        subprocess.run(
+            [sys.executable, str(Path(runner.__file__)), "freeze", str(self.task), str(output)],
+            check=True, capture_output=True, text=True,
+        )
+        self.assertEqual(json.loads(output.read_text()), runner.freeze_payload(self.task))
 
     def test_dry_run_does_not_create_artifacts(self):
         self.assertEqual(runner.run_agent(self.args(dry_run=True)), 0)

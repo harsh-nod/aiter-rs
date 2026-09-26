@@ -1,0 +1,19 @@
+{
+  "task_id": "gfx950.quant_mxfp4.even.noshuffle.v1",
+  "task_revision": "no-feedback-v1",
+  "aiter_sha": "868ccf62a0bcad3aa47f92728340ccb37ed4fb39",
+  "gpu_sku": "AMD Instinct MI350X",
+  "target_arch": "gfx950",
+  "operator_entry": "aiter.ops.quant.quant_mxfp4_hip",
+  "prompt_file": "prompt.md",
+  "starter_dir": "starter",
+  "harness_revision": "5abc535a9f54cb9c85e780abe9e3a9b3c2398f0b",
+  "harness_spec_sha256": "127e3bc54b2fbd312b5b34d3d95526bbc7603e148a854aa3ed5de9ec986a6d61",
+  "task_mode": "no_feedback",
+  "visible_checks": [],
+  "hidden_checks": [],
+  "build_sources": ["starter.hip"],
+  "build_flags": ["-O3", "-shared", "-fPIC", "--offload-arch=gfx950"],
+  "benchmark": {"case_ids": ["f16_medium", "bf16_large"], "max_latency_ratio_each": 1.05},
+  "scored_eligible": true
+}
