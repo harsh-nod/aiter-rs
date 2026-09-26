@@ -55,3 +55,21 @@ precondition of wave shuffles and reject reads from lanes that do not
 participate at that program point. The preview does **not** establish that
 fe2o3 currently proves this property. Private inputs and raw results remain
 outside the repository; no latency or AITER-level performance claim was made.
+
+## Controlled repair
+
+**Analyst repair, not agent submission.** In a separate copy of the frozen
+source, the only change moved `__shfl_down(code, 1, 64)` from inside the
+even-lane branch to immediately before it; only the packed-byte store remained
+conditional. The original agent artifact was not changed. Repaired source
+SHA256: `09240a87c341029b6fc21774ed7c9d49c4aa6b5910e939ebe9efaff63c6eca82`.
+It compiled with the same `gfx950` command; library raw SHA256 was
+`5c6545b31d4b44162eb0cd46d4d964c9d5b6d1b8a1d33fdefe3629f25f01e3e4`.
+
+On the same public spec and attested MI350X, pinned AITER and this analyst
+repair matched the CPU oracle exactly for packed FP4 and E8M0 scales in all
+three visible cases. Input and output guards passed. The scorer used its
+non-agent `reference` mode for this control, not to designate a vetted HIP
+baseline: `correctness=visible_pass`, `withheld_cases_evaluated=false`,
+`performance=not_run`, `joint_pass=false`. This one-change success supports the
+divergent-shuffle diagnosis; it does not promote the repair to an agent result.
