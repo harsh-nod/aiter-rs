@@ -23,12 +23,15 @@ See [PLAN.md](PLAN.md) for the protocol and parallel workstreams.
   a complete census, and **zero types are admitted for scored trials**. There
   is no evidence-backed route to 10,000 distinct types yet.
 - The first [MXFP4 Even task](tasks/quant_mxfp4_even/spec.md) has an
-  independent oracle and a HIP reference. A visible-only [reference
-  check](results/2026-09-25-quant-mxfp4-visible-baseline.md) passed on one
-  MI350X. Its hidden matrix and performance parity have not been established.
+  independent oracle and a HIP reference. A
+  [correctness check](results/2026-09-25-quant-mxfp4-baseline-admission.md)
+  passed all seven cases, including four withheld, on one MI350X. Performance
+  parity has not been established.
 - One [unscored Codex HIP trajectory](results/agent-previews/quant-mxfp4-even-preview02/README.md)
-  is preserved with source snapshots and raw events. It is exploratory and
-  must not enter an agent-error incidence denominator.
+  is preserved with source snapshots and raw events. Its
+  [visible-only check](results/2026-09-25-quant-mxfp4-preview02-visible.md)
+  passed three cases. It is exploratory and must not enter an agent-error
+  incidence denominator.
 - [MegaMoE feasibility](mega/feasibility.md) documents the cross-rank
   hardware gap: the current `mi350-2` session exposes one GPU, so a
   world-size-one test cannot validate its multi-GPU protocol. The visible
