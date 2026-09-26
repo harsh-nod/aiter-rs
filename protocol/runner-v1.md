@@ -65,6 +65,42 @@ refuses that run. It must never enter an agent-error frequency denominator.
 The current runner also has no reliable model-token cap, so trials needing
 strict token-budget equality are not scored until that control is added.
 
+## Agent isolation
+
+Every real `run`, including an unscored preview, requires unprivileged
+`bwrap`; there is no unsandboxed fallback. The agent sees only its writable
+`/workspace`, read-only `/usr` and `/etc`, the selected read-only ROCm
+toolchain, a single resolver file if needed, the Codex executable, and a
+configured CA certificate. `/tmp` and `/home/agent/.codex` are private tmpfs
+mounts. The trusted runner copies Codex auth and policy cache files into that
+tmpfs by file descriptor; refreshed state is not written back to the host.
+PID, IPC, and UTS namespaces are unshared. The basic `/dev` mount does not
+include `/dev/kfd` or `/dev/dri`, so agent-side GPU execution is unavailable;
+`hipcc` compilation still works. Network is shared for the model API.
+
+The host home, SSH keys, SSH agent socket, AITER checkout, private withheld
+manifest, harness, and unrelated workspace paths are not mounted. The runner
+clears inherited environment variables, so SSH and cloud credentials are not
+forwarded. The post-agent scorer runs separately, after the sandbox exits.
+The boundary test verifies the hidden paths and credential variables are
+absent while workspace writes and `hipcc` work. A real unscored Codex smoke
+also completed in this namespace with `CODEX_HOME` pointing to a current
+host auth profile (21 structured events, empty stderr). A manual SSH probe
+from the namespace to the target host's direct address was denied with
+`Permission denied (publickey)`; the host's `mi350-2` SSH alias is absent
+because the host SSH config is not mounted.
+
+This is filesystem/credential isolation for the study, not a defense against
+a malicious model with arbitrary network access: the Codex process and its
+shell tools share the namespace, so agent commands **can read the copied
+Codex auth JSON**. The boundary test records that fact without recording any
+token bytes. It protects host SSH credentials and withheld data, not the
+model API credential itself. Use a dedicated, limited credential for larger
+studies and keep the raw event stream private until a secret review. No agent-side GPU
+feedback is available under this policy; any task advertised as having
+visible GPU benchmarks must be relabeled or given a separately controlled
+feedback channel before scored enrollment.
+
 ## Artifacts and limitations
 
 Each actual run writes to `runs/artifacts/<task>--<revision>--<replicate>/`:

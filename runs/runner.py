@@ -37,6 +37,14 @@ def digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def file_digest(path: Path) -> str:
+    hasher = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            hasher.update(chunk)
+    return hasher.hexdigest()
+
+
 def read_task(path: Path) -> dict:
     task = json.loads(path.read_text(encoding="utf-8"))
     required = {"task_id", "task_revision", "aiter_sha", "gpu_sku", "target_arch", "operator_entry", "prompt_file", "starter_dir", "harness_revision", "task_mode"}
@@ -118,6 +126,90 @@ def write_json_exclusive(path: Path, value: object) -> None:
     with path.open("x", encoding="utf-8") as out:
         json.dump(value, out, sort_keys=True, indent=2)
         out.write("\n")
+
+
+def agent_sandbox_command(cli: str, workspace: Path, model: str, reasoning_effort: str) -> tuple[list[str], dict[str, str], dict, list[Path]]:
+    bwrap = shutil.which("bwrap")
+    if bwrap is None:
+        raise ValueError("bwrap is required for agent execution; refusing an unsandboxed run")
+    auth_home = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))).resolve()
+    auth = auth_home / "auth.json"
+    if not auth.is_file():
+        raise ValueError("Codex auth.json is missing; refusing an unsandboxed run")
+    ca_setting = os.environ.get("SSL_CERT_FILE") or os.environ.get("NODE_EXTRA_CA_CERTS")
+    ca_file = Path(ca_setting).resolve() if ca_setting else None
+    if ca_file is not None and not ca_file.is_file():
+        raise ValueError("configured API CA certificate is missing")
+    cli_binary = Path(cli).resolve()
+    if not cli_binary.is_file():
+        raise ValueError("agent CLI must resolve to a regular executable file")
+    if not all(Path(path).is_dir() for path in ("/usr", "/etc")):
+        raise ValueError("required read-only toolchain mounts are missing")
+    rocm = Path("/opt/rocm").resolve()
+    if not rocm.is_dir() or not rocm.is_relative_to(Path("/opt")) or rocm.parent != Path("/opt"):
+        raise ValueError("ROCm must resolve to one toolchain directory under /opt")
+    resolver = Path("/etc/resolv.conf").resolve()
+    if not resolver.is_file():
+        raise ValueError("system resolver file is missing; network API access cannot be qualified")
+    command = [
+        bwrap, "--die-with-parent", "--unshare-pid", "--unshare-ipc", "--unshare-uts", "--clearenv",
+        "--ro-bind", "/usr", "/usr", "--ro-bind", "/etc", "/etc",
+        "--dir", "/opt", "--ro-bind", str(rocm), str(rocm),
+        "--symlink", "usr/bin", "/bin", "--symlink", "usr/lib", "/lib", "--symlink", "usr/lib64", "/lib64",
+        "--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp",
+    ]
+    if rocm != Path("/opt/rocm"):
+        command.extend(("--symlink", rocm.name, "/opt/rocm"))
+    if not resolver.is_relative_to(Path("/etc")) and not resolver.is_relative_to(Path("/usr")) and not resolver.is_relative_to(rocm):
+        for parent in reversed(resolver.parent.parents):
+            if parent != Path("/"):
+                command.extend(("--dir", str(parent)))
+        command.extend(("--dir", str(resolver.parent)))
+        command.extend(("--ro-bind", str(resolver), str(resolver)))
+    command.extend((
+        "--dir", "/home", "--dir", "/home/agent", "--tmpfs", "/home/agent/.codex", "--dir", "/workspace",
+        "--bind", str(workspace), "/workspace",
+        "--ro-bind", str(cli_binary), "/codex",
+    ))
+    ephemeral_codex_files = [auth]
+    for name in ("cloud-config-bundle-cache.json", "cloud-requirements-cache.json", "installation_id"):
+        cache = auth_home / name
+        if cache.is_file():
+            ephemeral_codex_files.append(cache)
+    for index, source in enumerate(ephemeral_codex_files):
+        command.extend(("--perms", "0600", "--file", f"<fd:{index}>", f"/home/agent/.codex/{source.name}"))
+    if ca_file is not None:
+        command.extend(("--ro-bind", str(ca_file), "/home/agent/.codex/api-ca.pem"))
+    command.extend((
+        "--setenv", "HOME", "/home/agent",
+        "--setenv", "CODEX_HOME", "/home/agent/.codex",
+        "--setenv", "PATH", "/usr/bin:/bin:/opt/rocm/bin",
+        "--setenv", "LANG", "C.UTF-8",
+    ))
+    if ca_file is not None:
+        command.extend(("--setenv", "SSL_CERT_FILE", "/home/agent/.codex/api-ca.pem", "--setenv", "NODE_EXTRA_CA_CERTS", "/home/agent/.codex/api-ca.pem"))
+    command.extend((
+        "--chdir", "/workspace",
+        "--", "/codex", "exec", "--ignore-user-config", "--skip-git-repo-check", "--ephemeral", "--json",
+        "-C", "/workspace", "-s", "workspace-write", "-c", "approval_policy=never",
+        "-c", f"model_reasoning_effort={reasoning_effort}", "-m", model, "-",
+    ))
+    agent_env = {"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8"}
+    isolation = {
+        "backend": "bwrap",
+        "bwrap_version": subprocess.run([bwrap, "--version"], capture_output=True, text=True, check=True, timeout=10).stdout.strip(),
+        "mount_policy": "minimal-codex-hip-v1",
+        "workspace": "read-write /workspace only",
+        "system": "read-only /usr, /etc, selected ROCm toolchain; one read-only resolver file if needed",
+        "auth": "Codex auth and policy cache copied by FD into per-run tmpfs CODEX_HOME; agent shell can read auth; no host writeback",
+        "api_ca": "one read-only CA certificate, when configured",
+        "home": "ephemeral /home/agent; host home and SSH keys not mounted",
+        "tmp": "private tmpfs",
+        "pid_ipc_uts": "unshared",
+        "network": "shared for model API access; no SSH credentials or agent socket forwarded",
+        "cli_sha256": file_digest(cli_binary),
+    }
+    return command, agent_env, isolation, ephemeral_codex_files
 
 
 class Snapshotter:
@@ -217,7 +309,14 @@ def run_agent(args: argparse.Namespace) -> int:
     if cli is None:
         raise ValueError(f"agent CLI not found: {args.cli}")
     version = subprocess.run([cli, "--version"], capture_output=True, text=True, check=True, timeout=10).stdout.strip()
-    command = [cli, "exec", "--ignore-user-config", "--skip-git-repo-check", "--ephemeral", "--json", "-C", str(result_dir / "workspace"), "-s", "workspace-write", "-c", "approval_policy=never", "-c", f"model_reasoning_effort={args.reasoning_effort}", "-m", args.model, "-"]
+    command, agent_env, isolation, ephemeral_codex_files = agent_sandbox_command(cli, result_dir / "workspace", args.model, args.reasoning_effort)
+    codex_home = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))).resolve()
+    private_mounts = {str(codex_home / name): f"<host-codex-{name}>" for name in ("auth.json", "cloud-config-bundle-cache.json", "cloud-requirements-cache.json", "installation_id")}
+    private_mounts[str(Path(cli).resolve())] = "<host-codex-binary>"
+    if os.environ.get("SSL_CERT_FILE") or os.environ.get("NODE_EXTRA_CA_CERTS"):
+        private_mounts[str(Path(os.environ.get("SSL_CERT_FILE") or os.environ["NODE_EXTRA_CA_CERTS"]).resolve())] = "<host-api-ca-certificate>"
+    private_mounts[str(result_dir / "workspace")] = "<host-agent-workspace>"
+    safe_command = [private_mounts.get(item, item) for item in command]
     record = {
         "schema": "aiter-rs-agent-run-v1",
         "run_id": run_id,
@@ -225,7 +324,8 @@ def run_agent(args: argparse.Namespace) -> int:
         "task_freeze_sha256": digest(canonical(actual_freeze)),
         "agent": {"cli": args.cli, "version": version, "model": args.model, "reasoning_effort": args.reasoning_effort, "replicate_id": args.replicate_id, "sampling_seed_supported": False},
         "wall_seconds": args.wall_seconds,
-        "command": command,
+        "command": safe_command,
+        "isolation": isolation,
         "run_purpose": "command_preview" if args.dry_run else ("unscored_preview" if args.unscored_preview else "scored_trial_capture"),
         "incidence_eligible": not args.dry_run and not args.unscored_preview,
         "status": "dry_run" if args.dry_run else "running",
@@ -259,7 +359,16 @@ def run_agent(args: argparse.Namespace) -> int:
     started = time.monotonic()
     timed_out = False
     with (result_dir / "stderr.log").open("wb") as err, (result_dir / "events.jsonl").open("wb") as events:
-        process = subprocess.Popen(command, cwd=workspace, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=err, start_new_session=True)
+        # bwrap copies these FDs into its private tmpfs, so token refresh never writes to the host profile.
+        file_descriptors = []
+        try:
+            for path in ephemeral_codex_files:
+                file_descriptors.append(os.open(path, os.O_RDONLY))
+            executable_command = [str(file_descriptors[int(item[4:-1])]) if item.startswith("<fd:") and item.endswith(">") else item for item in command]
+            process = subprocess.Popen(executable_command, cwd=workspace, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=err, start_new_session=True, env=agent_env, pass_fds=tuple(file_descriptors))
+        finally:
+            for descriptor in file_descriptors:
+                os.close(descriptor)
         assert process.stdin is not None and process.stdout is not None
         try:
             process.stdin.write(prompt.encode("utf-8"))

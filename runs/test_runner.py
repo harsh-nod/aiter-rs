@@ -1,10 +1,12 @@
 import argparse
 import hashlib
 import json
+import os
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import runner
 
@@ -98,6 +100,57 @@ class RunnerTests(unittest.TestCase):
         self.assertGreaterEqual(len((run_dir / "snapshots.jsonl").read_text().splitlines()), 2)
         with self.assertRaisesRegex(ValueError, "cannot enter the scored harness"):
             runner.score_snapshots(argparse.Namespace(task=self.task, freeze=self.freeze, run_dir=run_dir))
+
+    def test_agent_namespace_hides_private_paths_and_host_credentials(self):
+        private = self.root / "private" / "withheld.json"
+        private.parent.mkdir()
+        private.write_text('{"secret":"test-only"}', encoding="utf-8")
+        (self.task_dir / "starter" / "kernel.hip").write_text(
+            '#include <hip/hip_runtime.h>\nextern "C" __global__ void noop() {}\n', encoding="utf-8"
+        )
+        self.freeze.write_text(json.dumps(runner.freeze_payload(self.task)), encoding="utf-8")
+        self.fake_cli.write_text(
+            "#!/usr/bin/env python3\n"
+            "import json, os, pathlib, subprocess, sys\n"
+            "if '--version' in sys.argv: print('fake-codex 1.0')\n"
+            "else:\n"
+            "    sys.stdin.read()\n"
+            "    data={'private_visible':pathlib.Path(" + repr(str(private)) + ").exists(),"
+            "'ssh_visible':pathlib.Path('/home/harsh/.ssh').exists(),"
+            "'repo_visible':pathlib.Path('/home/harsh/aiter-rs').exists(),"
+            "'home_entries':sorted(p.name for p in pathlib.Path('/home').iterdir()),"
+            "'ssh_agent_env':'SSH_AUTH_SOCK' in os.environ,"
+            "'cloud_secret_env':'AWS_SECRET_ACCESS_KEY' in os.environ,"
+            "'github_token_env':'GITHUB_TOKEN' in os.environ,"
+            "'auth_present':pathlib.Path('/home/agent/.codex/auth.json').is_file(),"
+            "'auth_readable':bool(pathlib.Path('/home/agent/.codex/auth.json').open('rb').read(1)),"
+            "'hipcc_works':subprocess.run(['/usr/bin/hipcc','-O2','-shared','-fPIC','--offload-arch=gfx950','kernel.hip','-o','libcandidate.so'],capture_output=True,timeout=60).returncode==0}\n"
+            "    pathlib.Path('/home/agent/.codex/ephemeral_marker').write_text('inside only')\n"
+            "    data['codex_home_writable']=pathlib.Path('/home/agent/.codex/ephemeral_marker').is_file()\n"
+            "    pathlib.Path('isolation.json').write_text(json.dumps(data))\n"
+            "    pathlib.Path('kernel.hip').write_text('// isolated candidate\\n')\n"
+            "    print(json.dumps({'type':'item.completed'}),flush=True)\n",
+            encoding="utf-8",
+        )
+        with patch.dict(os.environ, {"SSH_AUTH_SOCK": "/tmp/host-ssh-agent.sock", "AWS_SECRET_ACCESS_KEY": "test-only", "GITHUB_TOKEN": "test-only"}):
+            self.assertEqual(runner.run_agent(self.args()), 0)
+        run_dir = self.root / "results" / "fixture--v1--r001"
+        observed = json.loads((run_dir / "workspace" / "isolation.json").read_text())
+        self.assertEqual(observed, {
+            "private_visible": False, "ssh_visible": False, "repo_visible": False,
+            "home_entries": ["agent"], "ssh_agent_env": False,
+            "cloud_secret_env": False, "github_token_env": False,
+            "auth_present": True, "auth_readable": True,
+            "hipcc_works": True, "codex_home_writable": True,
+        })
+        self.assertTrue((run_dir / "workspace" / "libcandidate.so").is_file())
+        self.assertNotIn("host-ssh-agent.sock", (run_dir / "manifest.json").read_text())
+        self.assertFalse((Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))) / "ephemeral_marker").exists())
+
+    def test_bwrap_is_required_without_unsandboxed_fallback(self):
+        with patch("runner.shutil.which", return_value=None):
+            with self.assertRaisesRegex(ValueError, "bwrap is required"):
+                runner.agent_sandbox_command(str(self.fake_cli), self.root / "workspace", "fake-model", "medium")
 
     def test_timeout_keeps_failure_record(self):
         self.fake_cli.write_text(
