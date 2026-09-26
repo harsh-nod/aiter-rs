@@ -5,6 +5,8 @@ Environment available to this study: one exposed MI350X/gfx950 GPU on
 `mi350-2` (reported by the runner setup; recheck and log device discovery
 before experiments). This is a **source-based task proposal**, not a run
 result. No baseline, HIP parity path, or timing noise is yet validated.
+The [MHC admission matrix](mhc_admission_matrix.md) specifies source-only
+single-GPU gates for that first challenge; it does not change task eligibility.
 
 ## Single-GPU candidate: fused MHC post/pre
 
