@@ -370,7 +370,34 @@ def run_limited(command: list[str], cwd: Path, stdout_path: Path, stderr_path: P
     return {"status": status, "exit_code": exit_code, "elapsed_seconds": round(time.monotonic() - started, 3)}
 
 
-def validate_harness_result(path: Path, task: dict, spec_sha: str, binary_sha: str, freeze_sha: str, tree_sha: str) -> dict:
+def validate_private_inputs(spec_path: Path, withheld_path: Path, host_report_path: Path, task: dict, workspace: Path, harness_root: Path) -> tuple[str, str]:
+    if withheld_path.is_relative_to(workspace.parent) or host_report_path.is_relative_to(workspace.parent):
+        raise ValueError("private scoring inputs must stay outside the agent run directory")
+    if withheld_path.is_relative_to(harness_root):
+        raise ValueError("withheld manifest must stay outside the public harness checkout")
+    public = json.loads(spec_path.read_text(encoding="utf-8"))
+    if any(public.get(key) != task[key] for key in ("task_id", "aiter_sha", "gpu_sku", "target_arch")):
+        raise ValueError("public scorer spec does not match frozen task identity")
+    commitment = public.get("withheld_cases_sha256")
+    if not isinstance(commitment, str) or len(commitment) != 64:
+        raise ValueError("public scorer spec lacks a withheld-case SHA256 commitment")
+    withheld_raw = withheld_path.read_bytes()
+    if digest(withheld_raw) != commitment:
+        raise ValueError("withheld-case SHA256 does not match public spec")
+    withheld = json.loads(withheld_raw)
+    if withheld.get("schema_version") != 1 or withheld.get("task_id") != task["task_id"]:
+        raise ValueError("withheld manifest has wrong schema or task ID")
+    cases = withheld.get("cases", [])
+    if not cases or any(case.get("visibility") != "withheld" for case in cases):
+        raise ValueError("private manifest needs withheld cases")
+    report_raw = host_report_path.read_bytes()
+    report = json.loads(report_raw)
+    if report.get("schema_version") != 1 or report.get("gpu_name") != task["gpu_sku"] or report.get("arch") != task["target_arch"] or report.get("card_model") != public.get("gpu_pci_device_id"):
+        raise ValueError("host GPU report does not match frozen gfx950 task")
+    return commitment, digest(report_raw)
+
+
+def validate_harness_result(path: Path, task: dict, spec_sha: str, binary_sha: str, freeze_sha: str, tree_sha: str, withheld_sha: str, host_report_sha: str) -> dict:
     try:
         result = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
@@ -382,12 +409,16 @@ def validate_harness_result(path: Path, task: dict, spec_sha: str, binary_sha: s
         "candidate_path_sha256": binary_sha,
         "task_freeze_sha256": freeze_sha,
         "final_tree_sha256": tree_sha,
+        "withheld_cases_sha256": withheld_sha,
+        "withheld_cases_evaluated": True,
     }
     for field, value in expected.items():
         if result.get(field) != value:
             raise ValueError(f"scorer result {field} mismatch")
     if not isinstance(result.get("joint_pass"), bool) or not isinstance(result.get("environment"), dict):
         raise ValueError("scorer result lacks joint_pass or environment")
+    if result["environment"].get("host_gpu_report_sha256") != host_report_sha:
+        raise ValueError("scorer result host_gpu_report_sha256 mismatch")
     return result
 
 
@@ -408,6 +439,8 @@ def score_snapshots(args: argparse.Namespace) -> int:
     harness_root = args.harness_root.resolve()
     spec = args.spec.resolve()
     aiter_source = args.aiter_source.resolve()
+    withheld_spec = args.withheld_spec.resolve()
+    host_gpu_report = args.host_gpu_report.resolve()
     output = args.output.resolve()
     workspace = (run_dir / "workspace").resolve()
     if output.is_relative_to(workspace) or harness_root.is_relative_to(workspace) or aiter_source.is_relative_to(workspace):
@@ -417,6 +450,7 @@ def score_snapshots(args: argparse.Namespace) -> int:
     expected_spec = task.get("harness_spec_sha256")
     if not expected_spec or digest(spec.read_bytes()) != expected_spec:
         raise ValueError("scorer spec differs from frozen task")
+    withheld_sha, host_report_sha = validate_private_inputs(spec, withheld_spec, host_gpu_report, task, workspace, harness_root)
     checked_git_head(harness_root, task["harness_revision"], ["harness", "references"])
     checked_git_head(aiter_source, task["aiter_sha"], ["."])
     tracked = subprocess.run(["git", "-C", str(harness_root), "ls-files", "--error-unmatch", str(spec.relative_to(harness_root))], capture_output=True, timeout=15)
@@ -445,6 +479,8 @@ def score_snapshots(args: argparse.Namespace) -> int:
         "task_freeze_sha256": manifest["task_freeze_sha256"],
         "harness_revision": task["harness_revision"],
         "harness_spec_sha256": expected_spec,
+        "withheld_cases_sha256": withheld_sha,
+        "host_gpu_report_sha256": host_report_sha,
         "aiter_sha": task["aiter_sha"],
         "gpu_sku": task["gpu_sku"],
         "target_arch": task["target_arch"],
@@ -486,21 +522,21 @@ def score_snapshots(args: argparse.Namespace) -> int:
             continue
         item["binary_sha256"] = digest(library.read_bytes())
         scorer_output = item_dir / "harness"
-        command = [sys.executable, "-m", "harness.run", "--spec", str(spec), "--candidate", str(library), "--aiter-source", str(aiter_source), "--output", str(scorer_output), "--task-freeze-sha256", manifest["task_freeze_sha256"], "--final-tree-sha256", snapshot["tree_sha256"]]
+        command = [sys.executable, "-m", "harness.run", "--spec", str(spec), "--candidate", str(library), "--aiter-source", str(aiter_source), "--output", str(scorer_output), "--withheld-spec", str(withheld_spec), "--host-gpu-report", str(host_gpu_report), "--task-freeze-sha256", manifest["task_freeze_sha256"], "--final-tree-sha256", snapshot["tree_sha256"]]
         if args.correctness_only:
             command.append("--correctness-only")
         scorer_env = os.environ.copy()
         scorer_env["PYTHONDONTWRITEBYTECODE"] = "1"
         scored = run_limited(command, harness_root, item_dir / "scorer.stdout.log", item_dir / "scorer.stderr.log", args.score_wall_seconds, scorer_env)
-        item["status"] = "scorer_timeout" if scored["status"] == "timeout" else ("scorer_failed" if scored["status"] == "failed" else "completed")
+        item["status"] = "scorer_timeout" if scored["status"] == "timeout" else "scorer_result_invalid"
         item["scorer"] = scored
-        item["scorer_command"] = command
-        if item["status"] == "completed":
+        item["scorer_command"] = ["<private-withheld-spec>" if arg == str(withheld_spec) else ("<private-host-gpu-report>" if arg == str(host_gpu_report) else arg) for arg in command]
+        if scored["status"] != "timeout":
             try:
-                result = validate_harness_result(scorer_output / "result.json", task, expected_spec, item["binary_sha256"], manifest["task_freeze_sha256"], snapshot["tree_sha256"])
+                result = validate_harness_result(scorer_output / "result.json", task, expected_spec, item["binary_sha256"], manifest["task_freeze_sha256"], snapshot["tree_sha256"], withheld_sha, host_report_sha)
+                item["status"] = "completed"
                 item["joint_pass"] = result["joint_pass"]
             except ValueError as exc:
-                item["status"] = "scorer_result_invalid"
                 item["validation_error"] = str(exc)
         write_json_exclusive(item_dir / "score_record.json", item)
         score_manifest["results"].append(item)
@@ -534,6 +570,8 @@ def main() -> int:
     score.add_argument("--harness-root", type=Path, required=True)
     score.add_argument("--spec", type=Path, required=True)
     score.add_argument("--aiter-source", type=Path, required=True)
+    score.add_argument("--withheld-spec", type=Path, required=True)
+    score.add_argument("--host-gpu-report", type=Path, required=True)
     score.add_argument("--output", type=Path, required=True)
     score.add_argument("--snapshot", default="all", help="all, final, or one sequence number")
     score.add_argument("--score-wall-seconds", type=int, default=300)

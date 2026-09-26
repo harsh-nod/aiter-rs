@@ -125,33 +125,51 @@ class RunnerTests(unittest.TestCase):
         return subprocess.check_output(["git", "-C", str(path), "rev-parse", "HEAD"], text=True).strip()
 
     def setup_scorer(self):
-        harness_root = self.root / "trusted-harness"
-        (harness_root / "references").mkdir(parents=True)
-        (harness_root / "harness").mkdir()
-        spec = harness_root / "references" / "spec.json"
-        spec.write_text('{"task_id":"fixture"}\n', encoding="utf-8")
-        (harness_root / "harness" / "__init__.py").write_text("", encoding="utf-8")
-        (harness_root / "harness" / "run.py").write_text(
-            "import argparse, hashlib, json, pathlib, subprocess\n"
-            "p=argparse.ArgumentParser()\n"
-            "for flag in ('spec','candidate','aiter-source','output','task-freeze-sha256','final-tree-sha256'): p.add_argument('--'+flag)\n"
-            "p.add_argument('--correctness-only',action='store_true')\n"
-            "a=p.parse_args()\n"
-            "out=pathlib.Path(a.output); out.mkdir()\n"
-            "result={'task_id':'fixture','aiter_sha':subprocess.check_output(['git','-C',a.aiter_source,'rev-parse','HEAD'],text=True).strip(),"
-            "'spec_sha256':hashlib.sha256(pathlib.Path(a.spec).read_bytes()).hexdigest(),"
-            "'candidate_path_sha256':hashlib.sha256(pathlib.Path(a.candidate).read_bytes()).hexdigest(),"
-            "'task_freeze_sha256':a.task_freeze_sha256,'final_tree_sha256':a.final_tree_sha256,"
-            "'environment':{'gpu_sku':'MI350X'},'joint_pass':False,"
-            "'candidate_exists':pathlib.Path(a.candidate).is_file()}\n"
-            "(out/'result.json').write_text(json.dumps(result))\n",
-            encoding="utf-8",
-        )
-        harness_sha = self.make_git_repo(harness_root)
         aiter_root = self.root / "aiter"
         aiter_root.mkdir()
         (aiter_root / "README.md").write_text("fixture\n", encoding="utf-8")
         aiter_sha = self.make_git_repo(aiter_root)
+        private = self.root / "private"
+        private.mkdir()
+        self.withheld = private / "withheld.json"
+        self.withheld.write_text(json.dumps({
+            "schema_version": 1, "task_id": "fixture",
+            "cases": [{"id": "secret_case", "visibility": "withheld"}],
+        }), encoding="utf-8")
+        self.host_report = private / "host-gpu-report.json"
+        self.host_report.write_text(json.dumps({
+            "schema_version": 1, "gpu_name": "MI350X", "arch": "gfx950", "card_model": "0x75a0",
+        }), encoding="utf-8")
+        harness_root = self.root / "trusted-harness"
+        (harness_root / "references").mkdir(parents=True)
+        (harness_root / "harness").mkdir()
+        spec = harness_root / "references" / "spec.json"
+        spec.write_text(json.dumps({
+            "task_id": "fixture", "aiter_sha": aiter_sha, "gpu_sku": "MI350X",
+            "gpu_pci_device_id": "0x75a0", "target_arch": "gfx950",
+            "withheld_cases_sha256": hashlib.sha256(self.withheld.read_bytes()).hexdigest(),
+        }), encoding="utf-8")
+        (harness_root / "harness" / "__init__.py").write_text("", encoding="utf-8")
+        (harness_root / "harness" / "run.py").write_text(
+            "import argparse, hashlib, json, pathlib, subprocess, sys\n"
+            "p=argparse.ArgumentParser()\n"
+            "for flag in ('spec','candidate','aiter-source','output','withheld-spec','host-gpu-report','task-freeze-sha256','final-tree-sha256'): p.add_argument('--'+flag)\n"
+            "p.add_argument('--correctness-only',action='store_true')\n"
+            "a=p.parse_args()\n"
+            "out=pathlib.Path(a.output); out.mkdir()\n"
+            "spec=json.loads(pathlib.Path(a.spec).read_text())\n"
+            "result={'task_id':'fixture','aiter_sha':subprocess.check_output(['git','-C',a.aiter_source,'rev-parse','HEAD'],text=True).strip(),"
+            "'spec_sha256':hashlib.sha256(pathlib.Path(a.spec).read_bytes()).hexdigest(),"
+            "'candidate_path_sha256':hashlib.sha256(pathlib.Path(a.candidate).read_bytes()).hexdigest(),"
+            "'task_freeze_sha256':a.task_freeze_sha256,'final_tree_sha256':a.final_tree_sha256,"
+            "'withheld_cases_sha256':spec['withheld_cases_sha256'],'withheld_cases_evaluated':True,"
+            "'environment':{'gpu_sku':'MI350X','host_gpu_report_sha256':hashlib.sha256(pathlib.Path(a.host_gpu_report).read_bytes()).hexdigest()},'joint_pass':False,"
+            "'candidate_exists':pathlib.Path(a.candidate).is_file()}\n"
+            "(out/'result.json').write_text(json.dumps(result))\n"
+            "sys.exit(1)\n",
+            encoding="utf-8",
+        )
+        harness_sha = self.make_git_repo(harness_root)
         task = json.loads(self.task.read_text())
         task["aiter_sha"] = aiter_sha
         task["harness_revision"] = harness_sha
@@ -173,6 +191,7 @@ class RunnerTests(unittest.TestCase):
         return argparse.Namespace(task=self.task, freeze=self.freeze,
             run_dir=self.root / "results" / "fixture--v1--r001",
             harness_root=harness_root, spec=spec, aiter_source=aiter_root,
+            withheld_spec=self.withheld, host_gpu_report=self.host_report,
             output=self.root / "scores", snapshot="all", score_wall_seconds=5,
             build_wall_seconds=5, correctness_only=True, dry_run=False,
             compiler=str(compiler))
@@ -187,6 +206,9 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual((final / "candidate" / "kernel.hip").read_text(), "// candidate\n")
         self.assertTrue(json.loads((final / "harness" / "result.json").read_text())["candidate_exists"])
         self.assertEqual(scores["results"][-1]["binary_sha256"], hashlib.sha256(b"fake ELF").hexdigest())
+        self.assertEqual(scores["results"][-1]["scorer"]["exit_code"], 1)
+        self.assertNotIn(str(self.withheld), (final / "score_record.json").read_text())
+        self.assertNotIn("secret_case", (self.root / "scores" / "score_manifest.json").read_text())
 
     def test_refuses_tampered_snapshot_blob(self):
         harness_root, spec, aiter_root, compiler = self.setup_scorer()
@@ -221,7 +243,25 @@ class RunnerTests(unittest.TestCase):
         result = self.root / "result.json"
         result.write_text(json.dumps({"task_id": "wrong", "joint_pass": False, "environment": {}}), encoding="utf-8")
         with self.assertRaisesRegex(ValueError, "task_id mismatch"):
-            runner.validate_harness_result(result, json.loads(self.task.read_text()), "c" * 64, "d" * 64, "e" * 64, "f" * 64)
+            runner.validate_harness_result(result, json.loads(self.task.read_text()), "c" * 64, "d" * 64, "e" * 64, "f" * 64, "1" * 64, "2" * 64)
+
+    def test_rejects_withheld_manifest_commitment_mismatch(self):
+        harness_root, spec, aiter_root, compiler = self.setup_scorer()
+        self.assertEqual(runner.run_agent(self.args()), 0)
+        self.withheld.write_text('{"changed":true}', encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "withheld-case SHA256"):
+            runner.score_snapshots(self.score_args(harness_root, spec, aiter_root, compiler))
+        self.assertFalse((self.root / "scores").exists())
+
+    def test_rejects_wrong_host_gpu_report(self):
+        harness_root, spec, aiter_root, compiler = self.setup_scorer()
+        self.assertEqual(runner.run_agent(self.args()), 0)
+        self.host_report.write_text(json.dumps({
+            "schema_version": 1, "gpu_name": "MI300X", "arch": "gfx942", "card_model": "0x74a1",
+        }), encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "host GPU report"):
+            runner.score_snapshots(self.score_args(harness_root, spec, aiter_root, compiler))
+        self.assertFalse((self.root / "scores").exists())
 
 
 if __name__ == "__main__":

@@ -91,16 +91,29 @@ python3 runs/runner.py score --task tasks/example/task.json \
   --harness-root <clean-pinned-harness-checkout> \
   --spec <clean-pinned-harness-checkout>/references/<spec>.json \
   --aiter-source <clean-pinned-AITER-checkout> \
+  --withheld-spec <private-runner-only-cases.json> \
+  --host-gpu-report <private-host-ROCm-report.json> \
   --output runs/scores/<run-id> --snapshot all --correctness-only
 ```
 
 `score` verifies the task freeze, pinned clean Git checkouts, spec hash, and
-each snapshot/blob hash. It exports sources to a new directory, compiles with
+the raw SHA256 commitment from the public spec to the private withheld-case
+manifest. It also checks that the host report identifies the frozen gfx950 SKU
+and PCI model; both private files must remain outside the agent run directory,
+and the withheld manifest must remain outside the public harness checkout.
+Private file paths are redacted from score records; only their hashes are
+retained there. Never publish the raw harness result or scorer logs before
+review: the raw result contains withheld case IDs.
+
+The runner verifies each snapshot/blob hash. It exports sources to a new
+directory, compiles with
 the frozen `hipcc` argv into `libcandidate.so`, and invokes the scorer on that
 binary. It never invokes an agent-written build script or passes the live
 workspace to the scorer. The scorer must enforce correctness before timing;
 the runner validates the returned task/AITER/spec/binary/source hashes and
-records `joint_pass` separately from scorer execution status. Use `--snapshot
+the withheld and host-report hashes. A wrong candidate can yield a valid
+scorer result with exit code 1; the runner records that as a completed score
+with `joint_pass: false`, not an infrastructure failure. Use `--snapshot
 final` for just the submitted source and omit `--correctness-only` only when
 the GPU is uncontended and the benchmark contract is admitted.
 
