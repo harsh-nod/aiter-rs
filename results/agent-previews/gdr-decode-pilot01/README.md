@@ -19,11 +19,16 @@ tests, GPU execution feedback, AITER source, scorer, or private cases.
   passed all four public cases; the candidate passed all seven sequential
   steps. The [sanitized summary](visible-correctness-summary.json) records
   the pinned scorer, AITER, host-report, and image hashes.
+- A subsequent trusted [withheld replay](withheld-correctness-summary.json)
+  of the **same binary** passed all eight cases and 28 sequential steps for
+  both candidate and AITER. The reviewed candidate ran in a no-network
+  container; raw private cases and scorer output remain off-repository.
 
 The scorer used the independent CPU oracle and guards around state, output,
-and inputs. It did **not** receive the withheld manifest or measure latency;
-`joint_pass=false`. A visible-only correctness pass does not show that this
-kernel is performant or that it covers all supported AITER behavior.
+and inputs. Neither replay measured latency; `joint_pass=false`. Even an
+eight-case correctness pass does not show that this kernel is performant or
+that it covers all supported AITER behavior. Loading agent-authored native
+code with `ctypes` is not a general secrecy boundary for private inputs.
 
 Raw `events.jsonl`, source blobs, snapshots, diffs, manifest, and final files
 were reviewed before publication. The review found no API-key, GitHub-token,

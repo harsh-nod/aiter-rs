@@ -1,0 +1,35 @@
+{
+  "schema": "aiter-rs-sanitized-gdr-pilot-v1",
+  "run_id": "gdr_decode_packed_bf16_pilot--unscored-gfx950-v1--pilot01",
+  "run_purpose": "unscored_preview",
+  "incidence_eligible": false,
+  "candidate_kind": "hip_candidate_correctness_pilot",
+  "correctness": {
+    "status": "pass",
+    "candidate_pass_count": 8,
+    "aiter_baseline_pass_count": 8,
+    "total_cases": 8,
+    "candidate_step_pass_count": 28,
+    "aiter_step_pass_count": 28,
+    "total_steps": 28,
+    "withheld_cases_evaluated": true
+  },
+  "performance": {
+    "status": "not_run",
+    "reason": "pilot_correctness_only"
+  },
+  "joint_pass": false,
+  "parity_complete": false,
+  "gpu_sku": "AMD Instinct MI350X",
+  "target_arch": "gfx950",
+  "aiter_sha": "868ccf62a0bcad3aa47f92728340ccb37ed4fb39",
+  "trusted_harness_revision": "f1984cbb759beb484b5cda710892d2f7b6144ed3",
+  "docker_image_id": "sha256:90885f811fc53d8d03fb6ab6d05b5f0a2c88e277f26f56d19e6b990663a5626b",
+  "public_spec_raw_sha256": "fb5fdbfd031fa3d9fbf64a716b067b260d63ef29911e468e98a8279301a53145",
+  "host_gpu_report_raw_sha256": "0707955d447ea0511e38fb0ab57c024e74fdc405452790db87d8e97989205ceb",
+  "task_freeze_sha256": "f75dfdf2b2c7b9373283e0a654bb2243fd4ea2884495bcb1f5c69c3ddec3e8d0",
+  "final_source_tree_sha256": "3ffad208fbde25ca3659a2f0ca5c927959b878a3e809819a94e3e4cecda23888",
+  "candidate_binary_raw_sha256": "3b7ed6d207f441c7a337279ff916ca80950eac81c2ef56f963284cb58407f60d",
+  "private_result_locator": "mi350-2:aiter-rs-study/private/gdr_pilot_hidden/replay-001",
+  "note": "The same agent-produced binary from visible replay passed the four visible and four withheld cases, including 28 sequential stateful steps. The reviewed native candidate ran in a no-network container; ctypes loading is not a general secrecy boundary. This unscored correctness pilot has no latency or joint-parity claim."
+}

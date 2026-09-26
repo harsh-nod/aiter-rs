@@ -112,6 +112,9 @@ eligibility. Run the container with one attested MI350X and a bounded timeout.
 The scorer is not a sandbox: `ctypes.CDLL` executes candidate host code with
 the scorer's privileges. Before giving an untrusted candidate private cases,
 disable container networking, deny agent access to the scorer account and raw
-result, and review the native-code isolation boundary. The current pilot
-exercises candidate code only on visible cases; the withheld matrix has been
-readmitted with trusted AITER alone.
+result, and review the native-code isolation boundary. The first GDR pilot
+also replayed a reviewed candidate on the withheld matrix in a no-network
+container, with sanitized aggregate results published
+[here](../results/agent-previews/gdr-decode-pilot01/withheld-correctness-summary.json).
+That review and network isolation do not make arbitrary native candidate code
+safe to run against secrets.

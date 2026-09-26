@@ -51,7 +51,9 @@ See [PLAN.md](PLAN.md) for the protocol and parallel workstreams.
   an independent stateful CPU oracle. Pinned AITER passed its
   [eight-case correctness matrix](results/2026-09-25-gdr-decode-bf16-baseline-admission.md);
   a [guarded HIP candidate scorer](results/2026-09-25-gdr-candidate-scorer-smoke.md)
-  now exists, but no functional agent HIP candidate or performance parity has
+  and an [unscored agent pilot](results/agent-previews/gdr-decode-pilot01/README.md)
+  now exist. The pilot candidate passed all eight correctness cases and 28
+  sequential steps, including withheld cases. No performance parity has
   been established.
 - [MegaMoE feasibility](mega/feasibility.md) documents the cross-rank
   hardware gap: the current `mi350-2` session exposes one GPU, so a
