@@ -35,13 +35,19 @@ See [PLAN.md](PLAN.md) for the protocol and parallel workstreams.
   agent-error incidence denominator. The failure's
   [fe2o3 mapping](results/2026-09-25-fe2o3-wave-shuffle-target.md) is a
   proposed verifier challenge, not a claim of current detection.
-- The first [frozen no-feedback trial](results/agent-trials/quant-mxfp4-even-r001/README.md)
-  also passed all seven correctness cases, including withheld cases, in the
-  trusted scorer. Its performance and joint-parity outcome remain pending.
+- Two independent frozen no-feedback quant trials have trusted correctness
+  replays: [r001](results/agent-trials/quant-mxfp4-even-r001/README.md)
+  passed 7/7 cases, while [r002](results/agent-trials/quant-mxfp4-even-r002/README.md)
+  passed 1/7. The r002 agent placed a wave shuffle inside an even-lane branch;
+  a separate [one-line analyst control](results/agent-trials/quant-mxfp4-even-r002/analyst-shuffle-repair-summary.json)
+  passed 7/7 and supports that failure mechanism. The repair is not an agent
+  trial. Neither trial has a performance or joint-parity outcome yet.
 - The [GDR decode task](references/gdr_decode_packed_bf16_contract.md) has
   an independent stateful CPU oracle. Pinned AITER passed its
   [eight-case correctness matrix](results/2026-09-25-gdr-decode-bf16-baseline-admission.md);
-  no HIP candidate or performance parity has been established.
+  a [guarded HIP candidate scorer](results/2026-09-25-gdr-candidate-scorer-smoke.md)
+  now exists, but no functional agent HIP candidate or performance parity has
+  been established.
 - [MegaMoE feasibility](mega/feasibility.md) documents the cross-rank
   hardware gap: the current `mi350-2` session exposes one GPU, so a
   world-size-one test cannot validate its multi-GPU protocol. The visible

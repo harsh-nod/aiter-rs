@@ -141,8 +141,10 @@ class RunnerTests(unittest.TestCase):
             "    print(json.dumps({'type':'item.completed'}),flush=True)\n",
             encoding="utf-8",
         )
+        args = self.args()
+        args.wall_seconds = 60  # HIP startup and compilation vary under shared-host load.
         with patch.dict(os.environ, {"SSH_AUTH_SOCK": "/tmp/host-ssh-agent.sock", "AWS_SECRET_ACCESS_KEY": "test-only", "GITHUB_TOKEN": "test-only"}):
-            self.assertEqual(runner.run_agent(self.args()), 0)
+            self.assertEqual(runner.run_agent(args), 0)
         run_dir = self.root / "results" / "fixture--v1--r001"
         observed = json.loads((run_dir / "workspace" / "isolation.json").read_text())
         self.assertEqual(observed, {

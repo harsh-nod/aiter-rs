@@ -18,10 +18,10 @@ preserved unchanged.
   candidate passed 1/7. Its failures are packed-output mismatches; scale
   outputs and input integrity passed. Performance was not run.
 - The candidate source places `__shfl_down(code, 1)` inside an even-lane-only
-  branch, the same source-lane participation hazard confirmed by the
-  [preview 03 controlled repair](../../2026-09-25-quant-mxfp4-preview03-visible.md).
-  A separate repair check for r002 is recorded only if independently run;
-  the agent's own source remains the failure evidence.
+  branch. A separate [one-line analyst repair](analyst-shuffle-repair-summary.json)
+  moved the shuffle before the branch and passed 7/7 on trusted replay,
+  supporting a missing source-lane participation mechanism. This control is
+  not an independent agent trial; the agent's own source remains unchanged.
 - Raw evidence here: `events.jsonl`, `snapshots.jsonl`, `blobs/`, `diffs/`,
   `manifest.json`, `prompt.txt`, and `result.json`. Private case inputs and
   raw scorer output are not included.
