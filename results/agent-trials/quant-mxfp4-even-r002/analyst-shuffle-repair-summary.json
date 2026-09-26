@@ -1,0 +1,38 @@
+{
+  "schema": "aiter-rs-sanitized-analyst-control-v1",
+  "analysis_kind": "controlled_analyst_shuffle_repair",
+  "derived_from_run_id": "gfx950.quant_mxfp4.even.noshuffle.v1--no-feedback-v1--r002",
+  "analyst_control": true,
+  "independent_agent_trial": false,
+  "incidence_eligible": false,
+  "source_change": "Move __shfl_down(static_cast<uint32_t>(code), 1) immediately before the even-lane branch; leave the packed-byte store conditional. No other source change.",
+  "original_agent_source_raw_sha256": "da218f93007fc648a12ea9c0517a508f40e93e2ef36bcea73a69202c491514f0",
+  "original_agent_source_tree_sha256": "a4e604643622796067a8a55cb88ff3dc2352205371ac36ece7dead7d6a802581",
+  "repaired_source_raw_sha256": "bea5d10f752a95b5f6ecd4b051095b508521f50310d4b2a9ba30b3cb2cc89dc7",
+  "repaired_source_tree_sha256": "a15a551ac04f9e855debc3161f08965ba44d5912cb0f977f4e35815d951cc572",
+  "repaired_binary_raw_sha256": "b31dd05a1009ca1aaa4749104a3f54b3ac328afd6d0755417daa797e91025b68",
+  "replay_status": "completed",
+  "harness_transport_label": "agent_preview",
+  "correctness": {
+    "status": "pass",
+    "candidate_pass_count": 7,
+    "aiter_baseline_pass_count": 7,
+    "total_cases": 7,
+    "case_exception_count": 0,
+    "withheld_cases_evaluated": true
+  },
+  "performance": {
+    "status": "not_run",
+    "reason": "correctness_only"
+  },
+  "joint_pass": false,
+  "gpu_sku": "AMD Instinct MI350X",
+  "target_arch": "gfx950",
+  "aiter_sha": "868ccf62a0bcad3aa47f92728340ccb37ed4fb39",
+  "trusted_harness_revision": "5abc535a9f54cb9c85e780abe9e3a9b3c2398f0b",
+  "docker_image_id": "sha256:90885f811fc53d8d03fb6ab6d05b5f0a2c88e277f26f56d19e6b990663a5626b",
+  "public_spec_raw_sha256": "127e3bc54b2fbd312b5b34d3d95526bbc7603e148a854aa3ed5de9ec986a6d61",
+  "task_freeze_sha256": "b28a7b6ad42f4c0d259094553636215acb2c9b481976fec83c1524c68599cf67",
+  "private_result_locator": "mi350-2:aiter-rs-study/scores/quant-r002-analyst-shuffle-repair-001",
+  "interpretation": "The one-line all-lane shuffle participation repair eliminates the frozen r002 packed-output failures on this correctness matrix, supporting a divergent-shuffle source-lane participation mechanism. This does not change the original agent result or establish performance parity."
+}
