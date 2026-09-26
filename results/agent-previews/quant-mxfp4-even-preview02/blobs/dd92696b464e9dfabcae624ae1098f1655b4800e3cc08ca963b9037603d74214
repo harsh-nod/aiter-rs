@@ -1,0 +1,154 @@
+#include <hip/hip_runtime.h>
+#include <stdint.h>
+
+namespace {
+
+__device__ __forceinline__ uint32_t f32_to_bits(float x) {
+    union {
+        float f;
+        uint32_t u;
+    } v;
+    v.f = x;
+    return v.u;
+}
+
+__device__ __forceinline__ float bits_to_f32(uint32_t x) {
+    union {
+        uint32_t u;
+        float f;
+    } v;
+    v.u = x;
+    return v.f;
+}
+
+__device__ __forceinline__ float half_bits_to_f32(uint16_t h) {
+    const uint32_t sign = (static_cast<uint32_t>(h & 0x8000u)) << 16;
+    const uint32_t exp = (h >> 10) & 0x1fu;
+    const uint32_t mant = h & 0x03ffu;
+
+    if (exp != 0) {
+        return bits_to_f32(sign | ((exp + 112u) << 23) | (mant << 13));
+    }
+    if (mant == 0) {
+        return bits_to_f32(sign);
+    }
+
+    float v = static_cast<float>(mant) * 0x1.0p-24f;
+    return sign ? -v : v;
+}
+
+__device__ __forceinline__ float bf16_bits_to_f32(uint16_t b) {
+    return bits_to_f32(static_cast<uint32_t>(b) << 16);
+}
+
+__device__ __forceinline__ uint8_t quantize_e2m1_even(float mag) {
+    if (!(mag > 0.25f)) return 0;
+    if (mag < 0.75f) return 1;
+    if (mag <= 1.25f) return 2;
+    if (mag < 1.75f) return 3;
+    if (mag <= 2.5f) return 4;
+    if (mag < 3.5f) return 5;
+    if (mag <= 5.0f) return 6;
+    return 7;
+}
+
+__global__ __launch_bounds__(256) void quant_mxfp4_even_kernel(
+    const uint16_t* __restrict__ input,
+    uint8_t* __restrict__ packed_output,
+    uint8_t* __restrict__ scale_output,
+    int64_t total_groups,
+    int dtype) {
+    constexpr int groups_per_block = 8;
+    const int tid = static_cast<int>(threadIdx.x);
+    const int local_group = tid >> 5;
+    const int lane = tid & 31;
+    const int64_t group_id =
+        (static_cast<int64_t>(blockIdx.x) * groups_per_block) + local_group;
+    const bool valid = group_id < total_groups;
+    const int64_t elem_base = group_id * 32;
+    const uint16_t raw = valid ? input[elem_base + lane] : 0;
+
+    const float x = (dtype == 0) ? half_bits_to_f32(raw) : bf16_bits_to_f32(raw);
+    const bool neg = (raw & 0x8000u) != 0;
+    const float ax = bits_to_f32(f32_to_bits(x) & 0x7fffffffu);
+
+    __shared__ float reduce[groups_per_block][32];
+    __shared__ uint8_t codes[groups_per_block][32];
+    __shared__ float inv_scale_s[groups_per_block];
+
+    reduce[local_group][lane] = ax;
+    __syncthreads();
+
+    for (int offset = 16; offset > 0; offset >>= 1) {
+        if (lane < offset) {
+            const float other = reduce[local_group][lane + offset];
+            reduce[local_group][lane] =
+                (reduce[local_group][lane] > other) ? reduce[local_group][lane] : other;
+        }
+        __syncthreads();
+    }
+
+    if (lane == 0 && valid) {
+        const uint32_t r_bits =
+            (f32_to_bits(reduce[local_group][0]) + 0x00200000u) & 0x7f800000u;
+        int exponent = -127;
+        if (r_bits != 0) {
+            exponent = static_cast<int>(r_bits >> 23) - 129;
+            exponent = exponent < -127 ? -127 : (exponent > 127 ? 127 : exponent);
+        }
+        inv_scale_s[local_group] = ldexpf(1.0f, -exponent);
+        scale_output[group_id] = static_cast<uint8_t>(exponent + 127);
+    }
+    __syncthreads();
+
+    const uint8_t mag_code = quantize_e2m1_even(ax * inv_scale_s[local_group]);
+    codes[local_group][lane] = static_cast<uint8_t>(mag_code | (neg ? 0x8u : 0u));
+    __syncthreads();
+
+    if (lane < 16 && valid) {
+        const int64_t out_base = group_id * 16;
+        packed_output[out_base + lane] =
+            static_cast<uint8_t>(
+                codes[local_group][lane * 2] | (codes[local_group][lane * 2 + 1] << 4));
+    }
+}
+
+}  // namespace
+
+// dtype: 0 = FP16, 1 = BF16. Pointers address distinct device buffers.
+// Enqueue on stream and return a hipError_t integer; do not synchronize.
+extern "C" int aiter_rs_quant_mxfp4_even(
+    const void* input,
+    void* packed_output,
+    void* scale_output,
+    int64_t rows,
+    int64_t cols,
+    int dtype,
+    void* stream) {
+    if (input == nullptr || packed_output == nullptr || scale_output == nullptr ||
+        rows <= 0 || cols <= 0 || (cols & 31) != 0 || (dtype != 0 && dtype != 1)) {
+        return static_cast<int>(hipErrorInvalidValue);
+    }
+
+    const int64_t groups_per_row = cols / 32;
+    const int64_t total_groups = rows * groups_per_row;
+    constexpr int groups_per_block = 8;
+    const dim3 grid(static_cast<unsigned int>((total_groups + groups_per_block - 1) /
+                                             groups_per_block));
+    const dim3 block(groups_per_block * 32);
+    hipStream_t hip_stream = reinterpret_cast<hipStream_t>(stream);
+
+    hipLaunchKernelGGL(
+        quant_mxfp4_even_kernel,
+        grid,
+        block,
+        0,
+        hip_stream,
+        static_cast<const uint16_t*>(input),
+        static_cast<uint8_t*>(packed_output),
+        static_cast<uint8_t*>(scale_output),
+        total_groups,
+        dtype);
+
+    return static_cast<int>(hipGetLastError());
+}

@@ -1,0 +1,59 @@
+{
+  "agent": {
+    "cli": "codex",
+    "model": "gpt-5.5",
+    "reasoning_effort": "medium",
+    "replicate_id": "preview02",
+    "sampling_seed_supported": false,
+    "version": "codex-cli 0.157.0"
+  },
+  "command": [
+    "/home/harsh/.local/bin/codex",
+    "exec",
+    "--ignore-user-config",
+    "--skip-git-repo-check",
+    "--ephemeral",
+    "--json",
+    "-C",
+    "/home/harsh/aiter-rs/runs/artifacts/quant_mxfp4_even_preview--unscored-v1--preview02/workspace",
+    "-s",
+    "workspace-write",
+    "-c",
+    "approval_policy=never",
+    "-c",
+    "model_reasoning_effort=medium",
+    "-m",
+    "gpt-5.5",
+    "-"
+  ],
+  "incidence_eligible": false,
+  "run_id": "quant_mxfp4_even_preview--unscored-v1--preview02",
+  "run_purpose": "unscored_preview",
+  "schema": "aiter-rs-agent-run-v1",
+  "status": "running",
+  "task_freeze": {
+    "aiter_sha": "868ccf62a0bcad3aa47f92728340ccb37ed4fb39",
+    "build_flags": [
+      "-O3",
+      "-shared",
+      "-fPIC",
+      "--offload-arch=gfx950"
+    ],
+    "build_sources": [
+      "starter.hip"
+    ],
+    "gpu_sku": "MI350X",
+    "harness_revision": "UNSET-UNSCORED-PREVIEW",
+    "harness_spec_sha256": null,
+    "prompt_sha256": "e62d326e73fc4c6c3e76d632d6bd65c97519c1ae412d16ad218e4c1848fd3612",
+    "schema": "aiter-rs-task-freeze-v1",
+    "starter_tree_sha256": "6aa42fd58c1c3a8a578a35ec267a71f01179c63a71e4f99bd2cb5e95ca25cbe5",
+    "target_arch": "gfx950",
+    "task_id": "quant_mxfp4_even_preview",
+    "task_mode": "no_feedback",
+    "task_revision": "unscored-v1",
+    "task_sha256": "1e6918a4448825e06d689ad049147b516ae05bb724526c7347935e4d37b4d65f"
+  },
+  "task_freeze_sha256": "74fc185aae2cf6f9809aee0026a3c3c4b433959059ffe003a5e2c3b5476a42f0",
+  "wall_seconds": 900
+}

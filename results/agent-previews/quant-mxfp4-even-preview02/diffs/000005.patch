@@ -1,0 +1,22 @@
+--- a/starter.hip
++++ b/starter.hip
+@@ -88,7 +88,7 @@
+         __syncthreads();
+     }
+ 
+-    if (lane == 0 && valid) {
++    if (lane == 0) {
+         const uint32_t r_bits =
+             (f32_to_bits(reduce[local_group][0]) + 0x00200000u) & 0x7f800000u;
+         int exponent = -127;
+@@ -97,7 +97,9 @@
+             exponent = exponent < -127 ? -127 : (exponent > 127 ? 127 : exponent);
+         }
+         inv_scale_s[local_group] = ldexpf(1.0f, -exponent);
+-        scale_output[group_id] = static_cast<uint8_t>(exponent + 127);
++        if (valid) {
++            scale_output[group_id] = static_cast<uint8_t>(exponent + 127);
++        }
+     }
+     __syncthreads();
+ 
