@@ -1,0 +1,23 @@
+{
+  "aiter_sha": "868ccf62a0bcad3aa47f92728340ccb37ed4fb39",
+  "build_flags": [
+    "-O3",
+    "-shared",
+    "-fPIC",
+    "--offload-arch=gfx950"
+  ],
+  "build_sources": [
+    "starter.hip"
+  ],
+  "gpu_sku": "MI350X",
+  "harness_revision": "UNSET-UNSCORED-PREVIEW",
+  "harness_spec_sha256": null,
+  "prompt_sha256": "e62d326e73fc4c6c3e76d632d6bd65c97519c1ae412d16ad218e4c1848fd3612",
+  "schema": "aiter-rs-task-freeze-v1",
+  "starter_tree_sha256": "6aa42fd58c1c3a8a578a35ec267a71f01179c63a71e4f99bd2cb5e95ca25cbe5",
+  "target_arch": "gfx950",
+  "task_id": "quant_mxfp4_even_preview",
+  "task_mode": "no_feedback",
+  "task_revision": "unscored-v1",
+  "task_sha256": "1e6918a4448825e06d689ad049147b516ae05bb724526c7347935e4d37b4d65f"
+}

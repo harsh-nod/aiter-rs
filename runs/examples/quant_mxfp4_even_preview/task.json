@@ -1,0 +1,17 @@
+{
+  "task_id": "quant_mxfp4_even_preview",
+  "task_revision": "unscored-v1",
+  "aiter_sha": "868ccf62a0bcad3aa47f92728340ccb37ed4fb39",
+  "gpu_sku": "MI350X",
+  "target_arch": "gfx950",
+  "operator_entry": "aiter.ops.quant.quant_mxfp4_hip",
+  "prompt_file": "prompt.md",
+  "starter_dir": "starter",
+  "harness_revision": "UNSET-UNSCORED-PREVIEW",
+  "task_mode": "no_feedback",
+  "visible_checks": [],
+  "hidden_checks": [],
+  "build_sources": ["starter.hip"],
+  "build_flags": ["-O3", "-shared", "-fPIC", "--offload-arch=gfx950"],
+  "scored_eligible": false
+}
