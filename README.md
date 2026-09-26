@@ -31,7 +31,9 @@ See [PLAN.md](PLAN.md) for the protocol and parallel workstreams.
   and raw events: [preview 02](results/agent-previews/quant-mxfp4-even-preview02/README.md)
   passed three visible cases, while [preview 03](results/agent-previews/quant-mxfp4-even-preview03/README.md)
   exposed a reproducible divergent wave-shuffle bug. Neither enters an
-  agent-error incidence denominator.
+  agent-error incidence denominator. Its
+  [fe2o3 mapping](results/2026-09-25-fe2o3-wave-shuffle-target.md) is a
+  proposed verifier challenge, not a claim of current detection.
 - The [GDR decode task](references/gdr_decode_packed_bf16_contract.md) has
   an independent stateful CPU oracle. Pinned AITER passed its
   [eight-case correctness matrix](results/2026-09-25-gdr-decode-bf16-baseline-admission.md);
