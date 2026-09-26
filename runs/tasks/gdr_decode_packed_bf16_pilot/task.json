@@ -1,0 +1,19 @@
+{
+  "task_id": "gdr_decode_packed_bf16_pilot",
+  "task_revision": "unscored-gfx950-v1",
+  "aiter_sha": "868ccf62a0bcad3aa47f92728340ccb37ed4fb39",
+  "gpu_sku": "AMD Instinct MI350X",
+  "target_arch": "gfx950",
+  "operator_entry": "aiter.ops.gdr_decode_packed_bf16",
+  "prompt_file": "prompt.md",
+  "starter_dir": "starter",
+  "harness_revision": "f1984cbb759beb484b5cda710892d2f7b6144ed3",
+  "harness_spec_sha256": "fb5fdbfd031fa3d9fbf64a716b067b260d63ef29911e468e98a8279301a53145",
+  "task_mode": "no_feedback",
+  "visible_checks": [],
+  "hidden_checks": [],
+  "build_sources": ["starter.hip"],
+  "build_flags": ["-O3", "-shared", "-fPIC", "--offload-arch=gfx950"],
+  "benchmark": null,
+  "scored_eligible": false
+}
