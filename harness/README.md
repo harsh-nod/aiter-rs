@@ -68,5 +68,7 @@ runner's frozen task and agent-source provenance; they are not substitutes for
 the scorer's binary hash. For scored attempts, also supply
 `--withheld-spec /workspace/private/quant_mxfp4_withheld.json` from a runner-only,
 read-only mount. `--unscored-reference` labels the supplied HIP
-baseline correctly. The raw result contains machine details and withheld case
+baseline correctly; `--unscored-preview` labels an agent candidate tested
+only on the visible matrix. Neither mode counts as a scored trial or joint
+parity pass. The raw result contains machine details and withheld case
 IDs; publish only a sanitized summary until the private matrix is retired.

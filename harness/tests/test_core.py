@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from harness.core import merge_withheld, read_spec, score_buckets, sha256_path
-from harness.run import _active_gpu_pids, _gpu_matches
+from harness.run import _active_gpu_pids, _candidate_kind, _gpu_matches
 from references.quant_mxfp4 import GuardedOutputs, _fp4_code, _scale_even, oracle
 
 
@@ -74,6 +74,13 @@ class CoreTests(unittest.TestCase):
         host = {"gpu_name": "AMD Instinct MI350X", "card_model": "0x75a0", "arch": "gfx950"}
         self.assertTrue(_gpu_matches(spec, "", "gfx950:sramecc+:xnack-", "GPU[0]: Card Model: 0x75a0", host))
         self.assertFalse(_gpu_matches(spec, "", "gfx950", "GPU[0]: Card Model: 0x75a1", host))
+
+    def test_unscored_preview_is_distinct_from_reference(self):
+        self.assertEqual(_candidate_kind(False, True), "agent_preview")
+        self.assertEqual(_candidate_kind(True, False), "reference")
+        self.assertEqual(_candidate_kind(False, False), "agent_scored")
+        with self.assertRaises(ValueError):
+            _candidate_kind(True, True)
 
     def test_even_fp4_ties_and_zero_scale(self):
         self.assertEqual(_fp4_code(0.75), 2)

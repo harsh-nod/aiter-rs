@@ -50,6 +50,16 @@ def _gpu_matches(spec: dict, torch_name: str, arch: str, rocm_product: str, host
     )
 
 
+def _candidate_kind(unscored_reference: bool, unscored_preview: bool) -> str:
+    if unscored_reference and unscored_preview:
+        raise ValueError("candidate cannot be both a reference and an agent preview")
+    if unscored_reference:
+        return "reference"
+    if unscored_preview:
+        return "agent_preview"
+    return "agent_scored"
+
+
 def _mismatches(actual: bytes, expected: bytes) -> dict:
     if len(actual) != len(expected):
         return {"pass": False, "expected_bytes": len(expected), "actual_bytes": len(actual)}
@@ -165,6 +175,7 @@ def _gpu_manifest(spec: dict, aiter_source: Path, host_report_path: Path | None)
 
 
 def _run(args, spec: dict, candidate_path: Path, source: Path) -> dict:
+    candidate_kind = _candidate_kind(args.unscored_reference, args.unscored_preview)
     result = {
         "schema_version": 1,
         "task_id": spec["task_id"],
@@ -177,7 +188,8 @@ def _run(args, spec: dict, candidate_path: Path, source: Path) -> dict:
         "correctness": {"status": "not_run"},
         "performance": {"status": "not_run"},
         "joint_pass": False,
-        "scored_agent_candidate": not args.unscored_reference,
+        "candidate_kind": candidate_kind,
+        "scored_agent_candidate": candidate_kind == "agent_scored",
         "withheld_cases_sha256": spec["withheld_cases_sha256"],
         "withheld_cases_evaluated": args.withheld_spec is not None,
     }
@@ -259,7 +271,9 @@ def main() -> int:
     parser.add_argument("--host-gpu-report", type=Path, help="trusted host-side ROCm GPU report")
     parser.add_argument("--withheld-spec", type=Path, help="private runner-only case manifest")
     parser.add_argument("--correctness-only", action="store_true")
-    parser.add_argument("--unscored-reference", action="store_true", help="do not count a HIP reference as an agent attempt")
+    unscored_group = parser.add_mutually_exclusive_group()
+    unscored_group.add_argument("--unscored-reference", action="store_true", help="label a HIP reference smoke")
+    unscored_group.add_argument("--unscored-preview", action="store_true", help="label an agent preview that is not a scored trial")
     parser.add_argument("--task-freeze-sha256")
     parser.add_argument("--final-tree-sha256")
     args = parser.parse_args()
@@ -272,7 +286,7 @@ def main() -> int:
     if args.withheld_spec:
         args.withheld_spec = args.withheld_spec.resolve()
         spec = merge_withheld(spec, args.withheld_spec)
-    elif not args.unscored_reference:
+    elif not (args.unscored_reference or args.unscored_preview):
         parser.error("scored attempts require --withheld-spec")
     if args.candidate.suffix != ".so":
         parser.error("scored candidate must be a HIP shared library (.so)")
