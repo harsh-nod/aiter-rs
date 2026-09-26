@@ -14,6 +14,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from harness.core import sha256_path
 from runs.runner import (
     canonical,
     checked_git_head,
@@ -204,7 +205,7 @@ def score_inside(args: argparse.Namespace) -> int:
         write_json_exclusive(output / "summary.json", {"status": "scorer_failed", "scorer": scored})
         return 1
     result = _read(result_path)
-    expected = {"task_id": _read(args.spec)["task_id"], "aiter_sha": freeze["aiter_sha"], "spec_sha256": args.spec_sha256, "candidate_path_sha256": file_digest(library), "task_freeze_sha256": bundle["task_freeze_sha256"], "final_tree_sha256": bundle["final_tree_sha256"], "withheld_cases_sha256": _read(args.spec)["withheld_cases_sha256"], "withheld_cases_evaluated": True}
+    expected = {"task_id": _read(args.spec)["task_id"], "aiter_sha": freeze["aiter_sha"], "spec_sha256": sha256_path(args.spec), "candidate_path_sha256": sha256_path(library), "task_freeze_sha256": bundle["task_freeze_sha256"], "final_tree_sha256": bundle["final_tree_sha256"], "withheld_cases_sha256": _read(args.spec)["withheld_cases_sha256"], "withheld_cases_evaluated": True}
     valid = all(result.get(key) == value for key, value in expected.items()) and result.get("environment", {}).get("host_gpu_report_sha256") == file_digest(args.host_gpu_report)
     valid = valid and result.get("candidate_kind") == ("agent_preview" if bundle["run_purpose"] == "unscored_preview" else "agent_scored")
     valid = valid and result.get("performance", {}).get("status") == "not_run"
@@ -233,7 +234,7 @@ def main() -> int:
     score.add_argument("--output", type=Path, required=True)
     score.add_argument("--image", required=True)
     score.add_argument("--image-id", required=True)
-    score.add_argument("--gpu-index", type=int, default=1)
+    score.add_argument("--gpu-index", type=int, default=0, help="GPU ordinal inside the container's visible device set")
     score.add_argument("--wall-seconds", type=int, default=900)
     inside = sub.add_parser("_inside")
     for name in ("bundle", "spec", "aiter_source", "withheld_spec", "host_gpu_report", "output"):

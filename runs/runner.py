@@ -21,6 +21,8 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+from harness.core import sha256_path
+
 
 SOURCE_SUFFIXES = {".hip", ".cu", ".cuh", ".h", ".hpp", ".hh", ".cpp", ".cc", ".c", ".py", ".cmake"}
 SOURCE_NAMES = {"CMakeLists.txt", "Makefile"}
@@ -642,7 +644,7 @@ def score_snapshots(args: argparse.Namespace) -> int:
         item["scorer_command"] = ["<private-withheld-spec>" if arg == str(withheld_spec) else ("<private-host-gpu-report>" if arg == str(host_gpu_report) else arg) for arg in command]
         if scored["status"] != "timeout":
             try:
-                result = validate_harness_result(scorer_output / "result.json", task, expected_spec, item["binary_sha256"], manifest["task_freeze_sha256"], snapshot["tree_sha256"], withheld_sha, host_report_sha)
+                result = validate_harness_result(scorer_output / "result.json", task, sha256_path(spec), sha256_path(library), manifest["task_freeze_sha256"], snapshot["tree_sha256"], withheld_sha, host_report_sha)
                 item["status"] = "completed"
                 item["joint_pass"] = result["joint_pass"]
             except ValueError as exc:

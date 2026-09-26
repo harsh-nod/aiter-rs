@@ -36,7 +36,7 @@ python3 -m runs.remote_score score \
   --output /home/harmenon/aiter-rs-study/scores/quant-preview02-correctness-001 \
   --image vllm-aiter-layout-contract:hipblaslt-2ad56d2-aiter-deps \
   --image-id sha256:90885f811fc53d8d03fb6ab6d05b5f0a2c88e277f26f56d19e6b990663a5626b \
-  --gpu-index 1
+  --gpu-index 0
 ```
 
 The example's `--harness-revision` and `--spec-sha256` are shell-derived only
@@ -45,7 +45,7 @@ launch and compare them to the captured task freeze. The source bundle's
 `run_purpose` controls whether `--unscored-preview` is passed. Preview output
 has `candidate_kind=agent_preview`, `joint_pass=false`, and cannot enter
 incidence denominators, even if correctness passes. Docker has no network and
-sees one GPU (`HIP_VISIBLE_DEVICES=1`); no latency sampling occurs while the
+sees one GPU (`HIP_VISIBLE_DEVICES=0` within this container); no latency sampling occurs while the
 host has other GPU processes. The raw `scores/` tree includes withheld case
 results and must remain private. Publish only a reviewed summary.
 
