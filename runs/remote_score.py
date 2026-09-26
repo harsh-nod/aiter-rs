@@ -36,6 +36,12 @@ def _full_sha(value: str, name: str) -> str:
     return value
 
 
+def frozen_gpu_sku_matches(frozen: str, spec_name: str, *, scored: bool) -> bool:
+    if frozen == spec_name:
+        return True
+    return not scored and spec_name.startswith("AMD Instinct ") and frozen == spec_name.removeprefix("AMD Instinct ")
+
+
 def export_bundle(run_dir: Path, output: Path) -> dict:
     run_dir = run_dir.resolve()
     manifest = _read(run_dir / "manifest.json")
@@ -106,7 +112,7 @@ def validate_inputs(args: argparse.Namespace, bundle: dict) -> dict:
         raise ValueError("public scorer spec differs from expected SHA256")
     if freeze["aiter_sha"] != spec["aiter_sha"] or freeze["target_arch"] != spec["target_arch"]:
         raise ValueError("frozen agent target differs from scorer spec")
-    if freeze["gpu_sku"] not in spec["gpu_sku"]:
+    if not frozen_gpu_sku_matches(freeze["gpu_sku"], spec["gpu_sku"], scored=bundle["incidence_eligible"]):
         raise ValueError("frozen GPU SKU differs from scorer spec")
     if bundle["incidence_eligible"]:
         if freeze["task_id"] != spec["task_id"] or freeze["harness_revision"] != args.harness_revision:

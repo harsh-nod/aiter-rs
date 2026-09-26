@@ -8,6 +8,13 @@ from runs.runner import canonical, digest
 
 
 class RemoteScoreTests(unittest.TestCase):
+    def test_gpu_sku_match_is_exact_for_scored_captures(self):
+        matches = remote_score.frozen_gpu_sku_matches
+        self.assertTrue(matches("AMD Instinct MI350X", "AMD Instinct MI350X", scored=True))
+        self.assertTrue(matches("MI350X", "AMD Instinct MI350X", scored=False))
+        self.assertFalse(matches("MI350X", "AMD Instinct MI350X", scored=True))
+        self.assertFalse(matches("MI350", "AMD Instinct MI350X", scored=False))
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name)

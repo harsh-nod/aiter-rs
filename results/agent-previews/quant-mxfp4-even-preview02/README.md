@@ -13,7 +13,9 @@ agent-error incidence denominator and does not establish AITER parity.
 - Compilation: `hipcc -O3 -shared -fPIC --offload-arch=gfx950` succeeded
   locally after the agent run. The later
   [visible-only GPU check](../../2026-09-25-quant-mxfp4-preview02-visible.md)
-  passed three cases; hidden correctness and performance remain untested.
+  passed three cases, and a
+  [trusted remote replay](remote-correctness-summary.json) passed the full
+  seven-case correctness matrix. Performance remains untested.
 - Raw evidence: `events.jsonl`, `snapshots.jsonl`, `blobs/`, `diffs/`,
   `manifest.json`, `prompt.txt`, and `result.json`.
 - A first invocation (`preview01`) failed before agent work because an old
