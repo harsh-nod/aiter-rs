@@ -21,9 +21,9 @@ python3 -m runs.remote_score export \
 scp -r /tmp/quant-preview02-source-bundle \
   mi350-2:/home/harmenon/aiter-rs-study/previews/quant-preview02-source-bundle
 
-# On mi350-2, using a clean aiter-rs checkout at the supplied full commit.
+# On mi350-2, using a clean aiter-rs checkout containing runs.remote_score.
 # The private paths below never enter the agent sandbox or public repository.
-cd /home/harmenon/aiter-rs-study/aiter-rs
+cd /home/harmenon/aiter-rs-study/trusted-runner-2cc1667
 python3 -m runs.remote_score score \
   --bundle /home/harmenon/aiter-rs-study/previews/quant-preview02-source-bundle \
   --harness-root "$PWD" \
@@ -33,7 +33,7 @@ python3 -m runs.remote_score score \
   --spec-sha256 "$(sha256sum references/quant_mxfp4_gfx950.json | cut -d' ' -f1)" \
   --withheld-spec /home/harmenon/aiter-rs-study/private/quant_mxfp4_withheld.json \
   --host-gpu-report /home/harmenon/aiter-rs-study/private/host_gpu_report_20260925.json \
-  --output /home/harmenon/aiter-rs-study/scores/quant-preview02-correctness-001 \
+  --output /home/harmenon/aiter-rs-study/scores/quant-preview02-correctness-NEW \
   --image vllm-aiter-layout-contract:hipblaslt-2ad56d2-aiter-deps \
   --image-id sha256:90885f811fc53d8d03fb6ab6d05b5f0a2c88e277f26f56d19e6b990663a5626b \
   --gpu-index 0

@@ -170,7 +170,7 @@ def score_on_host(args: argparse.Namespace) -> int:
     outcome = run_limited(command, args.harness_root, args.output / "docker.stdout.log", args.output / "docker.stderr.log", args.wall_seconds)
     write_json_exclusive(args.output / "deployment.json", {
         "schema": "aiter-rs-remote-deployment-v1", "run_id": bundle["run_id"], "run_purpose": bundle["run_purpose"],
-        "scored": False if bundle["run_purpose"] == "unscored_preview" else None,
+        "scored": False,
         "harness_revision": args.harness_revision, "aiter_sha": spec["aiter_sha"], "image_id": image_id,
         "spec_sha256": args.spec_sha256, "withheld_cases_sha256": spec["withheld_cases_sha256"],
         "host_gpu_report_sha256": file_digest(args.host_gpu_report), "gpu_index": args.gpu_index,

@@ -1,0 +1,21 @@
+{
+  "schema": "aiter-rs-sanitized-remote-preview-v1",
+  "run_id": "quant_mxfp4_even_preview--unscored-v1--preview02",
+  "run_purpose": "unscored_preview",
+  "incidence_eligible": false,
+  "candidate_kind": "agent_preview",
+  "correctness": "pass",
+  "withheld_cases_evaluated": true,
+  "performance": "not_run",
+  "joint_pass": false,
+  "scored": false,
+  "gpu_sku": "AMD Instinct MI350X",
+  "target_arch": "gfx950",
+  "aiter_sha": "868ccf62a0bcad3aa47f92728340ccb37ed4fb39",
+  "trusted_runner_revision": "2cc16673a7787187a5e5a9c171f7fcd8c81a8b14",
+  "docker_image_id": "sha256:90885f811fc53d8d03fb6ab6d05b5f0a2c88e277f26f56d19e6b990663a5626b",
+  "public_spec_raw_sha256": "127e3bc54b2fbd312b5b34d3d95526bbc7603e148a854aa3ed5de9ec986a6d61",
+  "candidate_binary_raw_sha256": "6d06f3d9e4127f3360ecd0ebebc6368945c8f311ccc78f5f2e6a4874adfd5870",
+  "remote_private_result": "scores/quant-preview02-correctness-004",
+  "note": "Private case details and raw scorer logs remain on mi350-2; no performance claim."
+}
