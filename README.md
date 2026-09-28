@@ -16,18 +16,21 @@ feasibility gate. A separate AITER source audit supplies validation cases,
 but verifier priorities come from observed, transferable agent failures.
 See [PLAN.md](PLAN.md) for the protocol and parallel workstreams.
 
-## Current state (2026-09-25)
+## Current state (2026-09-28)
 
 - [The selected gfx950 registry](inventory/dispatch_tranche.md) traces six
   AITER families and 12 provisional algorithm/contract regimes. This is not
-  a complete census; it predates the first frozen quant trial below. No task
-  has a completed joint-parity result, and there is no evidence-backed route
-  to 10,000 distinct types yet.
+  a complete census; it predates the first frozen quant trial below. One
+  candidate now has two joint-pass replay results and one noise-rejected
+  replay, but no stable type-level parity admission. There is no
+  evidence-backed route to 10,000 distinct types yet.
 - The first [MXFP4 Even task](tasks/quant_mxfp4_even/spec.md) has an
   independent oracle and a HIP reference. A
   [correctness check](results/2026-09-25-quant-mxfp4-baseline-admission.md)
-  passed all seven cases, including four withheld, on one MI350X. Performance
-  parity has not been established.
+  passed all seven cases, including four withheld, on one MI350X. A later
+  [three-replay performance check](results/2026-09-28-quant-r001-performance-replays.md)
+  found a substantial latency advantage for one agent candidate, but its
+  frozen noise qualification passed in only two of three unchanged replays.
 - Two unscored Codex HIP trajectories are preserved with source snapshots
   and raw events: [preview 02](results/agent-previews/quant-mxfp4-even-preview02/README.md)
   passed all seven correctness cases in trusted replay, while [preview 03](results/agent-previews/quant-mxfp4-even-preview03/README.md)
@@ -43,8 +46,9 @@ See [PLAN.md](PLAN.md) for the protocol and parallel workstreams.
   repaired a divergent shuffle and passed 7/7. In r003, the agent's
   [pre-optimization snapshot](results/agent-trials/quant-mxfp4-even-r003/snapshot2-analyst-control-summary.json)
   passed 7/7 before its shuffle rewrite introduced a packed-output failure.
-  Controls are not independent agent trials. None of the three has a
-  performance or joint-parity outcome yet. See the
+  Controls are not independent agent trials. Only r001 has performance
+  measurements; the two incorrect final submissions were not benchmarked.
+  See the
   [failure adjudication](analysis/quant-wave-participation.md) for the
   mechanism and counting limits.
 - The [GDR decode task](references/gdr_decode_packed_bf16_contract.md) has
@@ -58,8 +62,8 @@ See [PLAN.md](PLAN.md) for the protocol and parallel workstreams.
 - [MegaMoE feasibility](mega/feasibility.md) documents the cross-rank
   hardware gap: the current `mi350-2` session exposes one GPU, so a
   world-size-one test cannot validate its multi-GPU protocol. The visible
-  GPU is occupied by an unrelated workload; no trustworthy latency parity
-  measurement has been run.
+  GPU was idle for the September 28 quant measurements; that does not remove
+  the multi-GPU requirement.
 
 The pinned AITER checkout remains outside this repository. Public agent
 artifacts are reviewed for credentials and private data before publication;

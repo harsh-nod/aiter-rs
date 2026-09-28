@@ -15,7 +15,8 @@ of the medium and large workload buckets. Correctness and performance will
 be scored separately from verified source snapshots on the same MI350X.
 
 `scored_eligible=true` authorizes an independent trial capture; it is not a
-claim that any submission has passed. The current GPU contention prevents a
-valid timing comparison. Until an uncontended replay completes, captured
-trials have no joint-parity outcome and must not be reported as completed
-performance experiments.
+claim that any submission has passed. GPU contention blocked timing on
+September 25; [uncontended r001 replays](../../../results/2026-09-28-quant-r001-performance-replays.md)
+later produced two joint passes and one noise-gate failure for the same
+submission. Do not count those measurements as independent agent trials or
+as stable type-level parity admission.

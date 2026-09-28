@@ -3,7 +3,8 @@
 This is the reviewed raw trajectory for the first
 [frozen no-feedback task](../../../runs/tasks/quant_mxfp4_even_no_feedback/README.md),
 run in a bubblewrap agent workspace. It is a scored-eligible **trial
-capture**, not a completed functionality-and-performance parity result.
+capture**; independent source-trial counting is separate from repeat GPU
+measurements.
 
 - Agent: Codex CLI `0.157.0`, model `gpt-5.5`, medium reasoning, 900-second
   wall limit; it finished in 232.662 seconds with six captured source states
@@ -16,8 +17,11 @@ capture**, not a completed functionality-and-performance parity result.
   correctness/benchmark feedback. The trusted remote scorer compiled only
   the exported final source snapshot, outside the agent namespace.
 - The [sanitized scorer summary](remote-correctness-summary.json) records a
-  correctness pass with withheld cases evaluated. Performance was not run,
-  so joint parity and any final agent-error rate remain undetermined.
+  correctness-only pass with withheld cases evaluated. Later
+  [full performance replays](../../2026-09-28-quant-r001-performance-replays.md)
+  preserved the same binary and frozen task: two met every correctness,
+  latency, and noise rule; one failed only the medium-bucket noise gate.
+  This is not yet stable type-level parity admission or an agent-error rate.
 - Raw evidence here: `events.jsonl`, `snapshots.jsonl`, `blobs/`, `diffs/`,
   `manifest.json`, `prompt.txt`, and `result.json`. Private case inputs and
   raw scorer output are not included.
