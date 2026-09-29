@@ -71,6 +71,28 @@ Shape rows, CSR seeds, and head counts within this branch are test buckets,
 not independent kernel types. No performance threshold is set before an
 observed AITER baseline and a credible HIP parity attempt exist.
 
+The candidate-facing C ABI is
+[`sparse_prefill_abi.h`](../../references/sparse_prefill_abi.h); the
+[agent prompt](agent_prompt.md) discloses the supported shape and numerical
+contract. A trusted runner can perform a bounded correctness-only candidate
+check with an **external process watchdog**:
+
+```sh
+timeout 180s python3 -m references.sparse_prefill_scorer \
+  --candidate /path/to/candidate.so \
+  --aiter-source /path/to/pinned/aiter \
+  --output-dir /path/outside/repo/candidate-visible-001
+```
+
+The runner alone may add `--matrix` pointing to the sealed private manifest.
+The scorer checks its SHA256 commitment from this pilot receipt, rejects
+in-repo private matrices and output directories, writes hidden aggregate
+results only, and always reports `performance: not_run` and
+`scored_eligible: false`. Native candidate code is not sandboxed by the
+scorer; deployment isolation and timeout are runner responsibilities. This
+withheld matrix is a **correctness-pilot commitment**, not a frozen final
+scoring policy.
+
 At the pinned revision, the public probe passed all five cases twice; the
 withheld probe passed all four cases twice. All public comparisons had zero
 elements outside the proposed tolerance, with finite output, unchanged
