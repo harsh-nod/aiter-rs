@@ -47,7 +47,7 @@ check untouched slots bitwise, and record per-row errors/nonfinite values.
 
 | Rank | Probe and source basis | Expected behavior / classification gate |
 | --- | --- | --- |
-| P0: fixed-scale validation | Pass `scale=float("nan")` with otherwise valid `B=1`, unique index. The wrapper compares `abs(float(scale)-expected_scale) > 1e-12` ([L65-69](https://github.com/ROCm/aiter/blob/868ccf62a0bcad3aa47f92728340ccb37ed4fb39/aiter/ops/gdr_decode_packed_bf16.py#L65)); NaN makes that test false, and the kernel multiplies Q normalization by `scale` ([L202](https://github.com/ROCm/aiter/blob/868ccf62a0bcad3aa47f92728340ccb37ed4fb39/csrc/kernels/gdr_decode_packed_bf16.cu#L202)). | **High-confidence validation-bypass hypothesis**, not confirmed at runtime. The apparent fixed-scale contract implies rejection like `scale=1.0`; if maintainers intentionally allow NaN, define expected state/output behavior before calling it a bug. A launched NaN could poison in-place state. |
+| P0: fixed-scale validation | Pass `scale=float("nan")` with otherwise valid `B=1`, unique index. The wrapper compares `abs(float(scale)-expected_scale) > 1e-12` ([L65-69](https://github.com/ROCm/aiter/blob/868ccf62a0bcad3aa47f92728340ccb37ed4fb39/aiter/ops/gdr_decode_packed_bf16.py#L65)); NaN makes that test false, and the kernel multiplies Q normalization by `scale` ([L202](https://github.com/ROCm/aiter/blob/868ccf62a0bcad3aa47f92728340ccb37ed4fb39/csrc/kernels/gdr_decode_packed_bf16.cu#L202)). | **High-confidence validation-bypass hypothesis**, not confirmed at runtime. The apparent fixed-scale contract implies rejection like `scale=1.0`; if maintainers intentionally allow NaN, define expected state/output behavior before calling it a bug. Output is Q-dependent, but the state update is not; inspect both rather than assuming state poisoning. |
 | P1: empty batch | Use B=0, nonempty state pool, empty indices/out, and a state snapshot. Neither wrapper shape check nor native checks demand B>0 ([wrapper L71-73](https://github.com/ROCm/aiter/blob/868ccf62a0bcad3aa47f92728340ccb37ed4fb39/aiter/ops/gdr_decode_packed_bf16.py#L71), [native L291-311](https://github.com/ROCm/aiter/blob/868ccf62a0bcad3aa47f92728340ccb37ed4fb39/csrc/kernels/gdr_decode_packed_bf16.cu#L291)); grid becomes zero. | The earlier bounded run observed `hipErrorInvalidConfiguration`, but no independent source specifies that B=0 must be a no-op. If B=0 is supported, expect empty output and unchanged state; otherwise require an explicit validation error/precondition. **Contract ambiguity, not a confirmed kernel bug.** |
 | P1: physical state-slot overlap | Construct `state` with pool=2 and `stride(0)=0` (e.g. an expanded one-slot view), `indices=[0,1]`, B=2. The wrapper verifies inner strides and only 16-byte slot alignment, not slot separation ([L92-101](https://github.com/ROCm/aiter/blob/868ccf62a0bcad3aa47f92728340ccb37ed4fb39/aiter/ops/gdr_decode_packed_bf16.py#L92)); native address is `state_idx * state_slot_stride` ([L143-154](https://github.com/ROCm/aiter/blob/868ccf62a0bcad3aa47f92728340ccb37ed4fb39/csrc/kernels/gdr_decode_packed_bf16.cu#L143)). | Logical indices are unique but physical writes race. First decide whether mutable state must have nonoverlapping slots. If yes, wrapper should reject such views; if aliasing is supported, specify deterministic semantics. **Input-validation/contract candidate**, not an established supported-input wrong answer. Do not use its raced output as an oracle. |
 | P1: supported strided mixed batch | For B=1,3,5 and pool>B, mix unique valid indices with repeated `-1`/`INT_MIN`; use padded QKV/state slot strides, broadcast or padded read-only gate rows, positive-stride indices, canary gaps. The wrapper allows these layouts ([L74-101](https://github.com/ROCm/aiter/blob/868ccf62a0bcad3aa47f92728340ccb37ed4fb39/aiter/ops/gdr_decode_packed_bf16.py#L74)); native uses supplied row/slot strides ([L326-331](https://github.com/ROCm/aiter/blob/868ccf62a0bcad3aa47f92728340ccb37ed4fb39/csrc/kernels/gdr_decode_packed_bf16.cu#L326)). | **Supported-input regression probe.** Compare oracle outputs and updated slots; invalid rows must output positive zero, untouched slots and padding canaries must remain bitwise unchanged. Odd B is not a partial CTA: the grid is exactly `128*B`. Existing tests cover B=2,4,6, one strided B=6 case ([L179-243](https://github.com/ROCm/aiter/blob/868ccf62a0bcad3aa47f92728340ccb37ed4fb39/op_tests/test_gdr_decode_packed_bf16.py#L179)). |
@@ -63,3 +63,30 @@ and aliasing. A source-visible branch, a failed launch, or a racy input alone
 does not establish a supported-domain AITER bug. Any confirmed baseline
 finding should be separately minimized and attributed to AITER; it cannot
 be counted as an error made by an agent in a later HIP trial.
+
+## Bounded fixed-scale runtime probe (not run here)
+
+[`probe_scale_nan.py`](probe_scale_nan.py) is a read-only-to-repo, single-process
+probe for the P0 hypothesis. It verifies the pinned checkout and exact
+fixed-scale source predicate before importing AITER, requires an external
+`AITER_JIT_DIR`, disables Python bytecode writes, and only allocates ephemeral
+GPU tensors. In an appropriate gfx950 environment, run with an outer timeout:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 AITER_JIT_DIR=/external/aiter-jit-cache \
+  timeout 150s python3 analysis/aiter_audits/gdr/probe_scale_nan.py \
+  --aiter-checkout /readonly/pinned-aiter
+```
+
+The script first checks `scale=1.0` raises `ValueError` without touching
+output/state, then calls the default scale as a finite control, then tries
+`scale=NaN` on fresh copies. JSON reports finite/NaN/Inf element counts,
+return aliases, untouched-slot identity, and whether the NaN run's state is
+bitwise equal to the finite control. The [kernel's Q-dependent output](https://github.com/ROCm/aiter/blob/868ccf62a0bcad3aa47f92728340ccb37ed4fb39/csrc/kernels/gdr_decode_packed_bf16.cu#L245)
+may be nonfinite if NaN is admitted, while its
+[state update](https://github.com/ROCm/aiter/blob/868ccf62a0bcad3aa47f92728340ccb37ed4fb39/csrc/kernels/gdr_decode_packed_bf16.cu#L253)
+does not use Q scale and may match the finite control. If the NaN call
+returns, the JSON labels it a *candidate validation bypass, contract
+pending*, not a confirmed bug. An unexpected control failure is
+inconclusive. Never run this concurrently with another GPU study or count
+the outcome as agent-authored error.
