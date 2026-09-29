@@ -41,6 +41,12 @@ under `/tmp`, so private result files remain readable by the trusted adapter.
 A minimal trusted passwd/group pair under the private replay directory is
 mounted read-only because the pinned image does not contain the host numeric
 UID; the host's full account database is not mounted.
+Compared with the earlier root-run public seed control, this exploratory
+adapter sets `HOME=/tmp`, `XDG_CACHE_HOME=/tmp/.cache`, and
+`AITER_JIT_DIR=/tmp/aiter-jit-cache`: the image default `/aiter-jit-cache`
+is not writable by the host UID. The compiler image, HIP flags, source SHA,
+and task/manifest commitments remain pinned, but timings under these user/cache
+settings are not the originally frozen scored environment.
 Each stage also has a replay-specific name, label, and host CID file. The
 trusted adapter checks the ownership tuple and removes only that exact
 container if the Docker client times out or exits while the container remains.

@@ -158,6 +158,7 @@ class PostAgentTests(unittest.TestCase):
             self.assertEqual(command[command.index("--user") + 1], f"{os.getuid()}:{os.getgid()}")
             self.assertIn("HOME=/tmp", command)
             self.assertIn("XDG_CACHE_HOME=/tmp/.cache", command)
+            self.assertIn("AITER_JIT_DIR=/tmp/aiter-jit-cache", command)
             self.assertIn("USER=aiter-replay", command)
             self.assertTrue(any("dst=/etc/passwd,readonly" in item for item in command))
             self.assertTrue(any("dst=/etc/group,readonly" in item for item in command))

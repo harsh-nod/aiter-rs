@@ -109,6 +109,7 @@ def _run_owned_container(command: list[str], stage: str, private_root: Path, rep
         "--user", f"{os.getuid()}:{os.getgid()}",
         "-e", "HOME=/tmp", "-e", "XDG_CACHE_HOME=/tmp/.cache",
         "-e", "USER=aiter-replay", "-e", "LOGNAME=aiter-replay",
+        "-e", "AITER_JIT_DIR=/tmp/aiter-jit-cache",
         "--mount", f"type=bind,src={passwd},dst=/etc/passwd,readonly",
         "--mount", f"type=bind,src={group},dst=/etc/group,readonly",
     ] + command[2:]
