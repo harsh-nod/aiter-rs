@@ -230,6 +230,9 @@ class DualWorkerTests(unittest.TestCase):
 
             def fake_case(script, source, case, root, env, hidden):
                 seen.append((case["id"], hidden))
+                self.assertEqual(source, args.batch_root / "candidate-header.cuh")
+                self.assertEqual(source.stat().st_mode & 0o777, 0o400)
+                self.assertEqual(sha256(source), sha256(candidate))
                 root.mkdir(mode=0o700)
                 result = self._result(case, withheld=hidden is not None)
                 result["source_check"]["candidate_header_sha256"] = sha256(candidate)

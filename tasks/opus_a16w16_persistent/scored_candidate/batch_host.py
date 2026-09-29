@@ -92,6 +92,7 @@ def run_batch(args, *, run_case=_run_case) -> dict:
               "task_sha256": sha256(HERE / "task.json"), "candidate_header_sha256": header_sha,
               "public_completed": 0, "withheld_completed": 0, "cases": [],
               "status": "running", "scored_eligible": False}
+    snapshot = root / "candidate-header.cuh"
     started = time.monotonic()
 
     def record_case(stage: str, case: dict, case_root: Path, exit_code: int, elapsed: float) -> None:
@@ -107,17 +108,23 @@ def run_batch(args, *, run_case=_run_case) -> dict:
         report["cases"].append(entry)
 
     try:
+        descriptor = os.open(snapshot, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(candidate.read_bytes())
+        snapshot.chmod(0o400)
+        if candidate_sha(snapshot) != header_sha or candidate_sha(candidate) != header_sha:
+            raise RuntimeError("candidate changed while freezing private batch snapshot")
         for case in public_cases:
             if time.monotonic() - started > BATCH_BUDGET_SECONDS:
                 report["status"] = "batch_budget_inconclusive"
                 return report
-            if candidate_sha(candidate) != header_sha:
+            if candidate_sha(candidate) != header_sha or candidate_sha(snapshot) != header_sha:
                 raise RuntimeError("candidate source changed during public batch")
             case_root = public_root / case["id"]
             case_started = time.monotonic()
-            code_status = run_case(script, candidate, case, case_root, env, None)
+            code_status = run_case(script, snapshot, case, case_root, env, None)
             record_case("public", case, case_root, code_status, time.monotonic() - case_started)
-            if candidate_sha(candidate) != header_sha:
+            if candidate_sha(candidate) != header_sha or candidate_sha(snapshot) != header_sha:
                 raise RuntimeError("candidate source changed during public case")
             if code_status:
                 report["status"] = "public_incomplete_or_failed"
@@ -139,15 +146,15 @@ def run_batch(args, *, run_case=_run_case) -> dict:
             if time.monotonic() - started > BATCH_BUDGET_SECONDS:
                 report["status"] = "batch_budget_inconclusive"
                 return report
-            if candidate_sha(candidate) != header_sha:
+            if candidate_sha(candidate) != header_sha or candidate_sha(snapshot) != header_sha:
                 raise RuntimeError("candidate source changed during withheld batch")
             if sha256(args.withheld_matrix) != task["withheld_matrix_sha256"]:
                 raise RuntimeError("withheld matrix changed during batch")
             case_root = withheld_root / case["id"]
             case_started = time.monotonic()
-            code_status = run_case(script, candidate, case, case_root, env, args.withheld_matrix.resolve())
+            code_status = run_case(script, snapshot, case, case_root, env, args.withheld_matrix.resolve())
             record_case("withheld", case, case_root, code_status, time.monotonic() - case_started)
-            if candidate_sha(candidate) != header_sha:
+            if candidate_sha(candidate) != header_sha or candidate_sha(snapshot) != header_sha:
                 raise RuntimeError("candidate source changed during withheld case")
             if code_status:
                 report["status"] = "withheld_incomplete_or_failed"
