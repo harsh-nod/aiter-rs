@@ -41,8 +41,9 @@ but the exact offending instruction is not yet profiler- or ISA-proven.
 **Disposition:** exclude K=194, K=254, and partial-K generally from this
 task's supported/scored domain pending a source-level fix and independent
 re-admission. Preserve the historical nine-case matrix and its one-hot pass
-as provenance; do not count the failure as agent-error incidence. Do not
-file an upstream issue before the independent receipt/reproducer review.
+as provenance; do not count the failure as agent-error incidence. After
+independent AITER-only repro review, this was reported as
+[ROCm/aiter #5954](https://github.com/ROCm/aiter/issues/5954).
 There were no private inputs and no latency measurements in this repro.
 
 Raw provenance: pinned AITER

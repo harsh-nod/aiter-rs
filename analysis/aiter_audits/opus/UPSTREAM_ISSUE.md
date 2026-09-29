@@ -1,3 +1,5 @@
+Filed as [ROCm/aiter #5954](https://github.com/ROCm/aiter/issues/5954).
+
 ## Summary
 
 On MI350X/gfx950, `opus_bmm` with explicit persistent BF16 `kid=300` accepts partial K values such as 194 and 254, but produces silently incorrect outputs. For K=194, changing only bytes in the *physical row padding* of A and B changes every output even though the logical tensors are identical. K=256 is correct. This was reproduced directly through pinned AITER, without an external kernel adapter.

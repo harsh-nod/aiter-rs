@@ -36,8 +36,8 @@ uses ceil-div K loops and async A/B loads; the
 [wrapper](https://github.com/ROCm/aiter/blob/9ef0d08fc20c81755c30c4f867b2f39664c75702/aiter/ops/opus/gemm_op_a16w16.py#L89)
 accepts padded A/B row strides. The physical-padding intervention can
 show that the partial-K path consumes bytes beyond logical K, but it does
-not by itself prove a particular GPU instruction is responsible. No
-upstream issue has been filed from this study yet.
+not by itself prove a particular GPU instruction is responsible. This
+finding was reported upstream as [ROCm/aiter #5954](https://github.com/ROCm/aiter/issues/5954).
 
 ## Pinned validation
 
