@@ -1,0 +1,15 @@
+{
+  "schema": "aiter-rs-opus-a16w16-persistent-admission-v1",
+  "aiter_sha": "868ccf62a0bcad3aa47f92728340ccb37ed4fb39",
+  "arch": "gfx950",
+  "dtype": "bfloat16",
+  "output_dtype": "bfloat16",
+  "rtol": 0.02,
+  "atol": 0.125,
+  "repeats": 2,
+  "cases": [
+    {"id": "aligned-nooob", "batch": 1, "m": 8192, "n": 4096, "k": 256, "kid": 1300, "seed": 95001},
+    {"id": "m-tail-oob", "batch": 1, "m": 12287, "n": 4096, "k": 256, "kid": 300, "seed": 95002},
+    {"id": "n-tail-16-aligned", "batch": 1, "m": 16384, "n": 2192, "k": 512, "kid": 300, "seed": 95003}
+  ]
+}
