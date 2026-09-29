@@ -2,8 +2,8 @@
 set -euo pipefail
 umask 077
 
-if [[ $# -ne 3 ]]; then
-  printf 'usage: %s CANDIDATE_HEADER PUBLIC_CASE_ID NEW_PRIVATE_RUN_ROOT\n' "$0" >&2
+if [[ $# -ne 3 && $# -ne 5 ]]; then
+  printf 'usage: %s CANDIDATE_HEADER CASE_ID NEW_PRIVATE_RUN_ROOT [--withheld-matrix PRIVATE_JSON]\n' "$0" >&2
   exit 2
 fi
 : "${AITERRS_STUDY_ROOT:?set the trusted host study root}"
@@ -15,11 +15,38 @@ run_root=$(realpath -m "$3")
 report=$(realpath "${OPUS_HOST_GPU_REPORT:-$study_root/private/opus-adversarial-20260929/host_gpu_report.txt}")
 image=vllm-aiter-layout-contract:hipblaslt-2ad56d2-aiter-deps
 expected_image=sha256:90885f811fc53d8d03fb6ab6d05b5f0a2c88e277f26f56d19e6b990663a5626b
+withheld=false
+display_case=$case_id
+matrix_in_container=/workspace/code/tasks/opus_a16w16_persistent/scored_candidate/public_matrix.json
+mode_arg=()
 
-case "$case_id" in
-  aligned-nooob|m-tail-oob|n-tail-16-aligned|m-one-row-tail|n-first-vector-tail|mn-combined-tail|k-min-even-loop|xcd-padded-grid) ;;
-  *) printf 'unsupported public full-K case: %s\n' "$case_id" >&2; exit 2 ;;
-esac
+if [[ $# -eq 5 ]]; then
+  if [[ $4 != --withheld-matrix ]]; then
+    printf 'unknown private-matrix option\n' >&2
+    exit 2
+  fi
+  withheld=true
+  display_case=withheld
+  withheld_source=$(realpath "$5")
+  PYTHONPATH="$code_root" python3 -m tasks.opus_a16w16_persistent.scored_candidate.freeze \
+    --verify-private "$withheld_source" >/dev/null
+  PYTHONPATH="$code_root" python3 - "$withheld_source" "$case_id" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+matrix = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+if sum(case["id"] == sys.argv[2] for case in matrix["cases"]) != 1:
+    raise SystemExit("case is not in the committed withheld matrix")
+PY
+  matrix_in_container=/workspace/private/withheld.json
+  mode_arg=(--withheld)
+else
+  case "$case_id" in
+    aligned-nooob|m-tail-oob|n-tail-16-aligned|m-one-row-tail|n-first-vector-tail|mn-combined-tail|k-min-even-loop|xcd-padded-grid) ;;
+    *) printf 'unsupported public full-K case: %s\n' "$case_id" >&2; exit 2 ;;
+  esac
+fi
 if [[ "$run_root" != "$study_root/private/"* || -e "$run_root" ]]; then
   printf 'run root must be new and under the trusted private study root\n' >&2
   exit 2
@@ -31,6 +58,9 @@ fi
 candidate_sha=$(sha256sum "$candidate" | cut -d' ' -f1)
 install -d -m 700 "$run_root"
 install -m 600 "$report" "$run_root/host_gpu_report.txt"
+if [[ $withheld == true ]]; then
+  install -m 600 "$withheld_source" "$run_root/withheld.json"
+fi
 PYTHONPATH="$code_root" python3 -m tasks.opus_a16w16_persistent.scored_candidate.host_identity \
   --private-root "$run_root"
 record_no_result() {
@@ -72,7 +102,8 @@ if [[ $prepare_status -ne 0 ]]; then
   exit "$prepare_status"
 fi
 
-container="opus-production-${case_id}-$$"
+case_tag=$(printf '%s' "$case_id" | sha256sum | cut -c1-12)
+container="opus-production-${case_tag}-$$"
 cleanup() {
   timeout 30s docker rm -f "$container" >/dev/null 2>&1 || true
 }
@@ -98,15 +129,15 @@ timeout --foreground --signal=TERM --kill-after=30s 1200s \
     --aiter-source /workspace/aiter --overlay-tree /workspace/private/overlay \
     --jit-baseline /workspace/private/jit-baseline \
     --jit-candidate /workspace/private/jit-candidate \
-    --matrix /workspace/code/tasks/opus_a16w16_persistent/scored_candidate/public_matrix.json \
+    --matrix "$matrix_in_container" \
     --host-gpu-report /workspace/private/host_gpu_report.txt \
     --case "$case_id" --candidate-header-sha256 "$candidate_sha" \
     --compiler-image-id "$expected_image" \
-    --output /workspace/private/result.json >"$run_root/docker.log" 2>&1
+    --output /workspace/private/result.json "${mode_arg[@]}" >"$run_root/docker.log" 2>&1
 status=$?
 set -e
 if [[ ! -e "$run_root/result.json" ]]; then
   record_no_result "$status" docker_execution
 fi
-printf 'OPUS production case %s exit=%d; private root: %s\n' "$case_id" "$status" "$run_root"
+printf 'OPUS production case %s exit=%d; private root: %s\n' "$display_case" "$status" "$run_root"
 exit "$status"

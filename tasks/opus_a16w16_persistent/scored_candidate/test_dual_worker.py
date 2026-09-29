@@ -10,6 +10,8 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from tasks.opus_a16w16_persistent.scored_candidate.dual_worker import (
@@ -19,6 +21,7 @@ from tasks.opus_a16w16_persistent.scored_candidate.dual_worker import (
 from tasks.opus_a16w16_persistent.scored_candidate.aggregate import aggregate_public, aggregate_withheld
 from tasks.opus_a16w16_persistent.scored_candidate.freeze import private_matrix, sha256
 from tasks.opus_a16w16_persistent.scored_candidate.host_identity import write_nss
+from tasks.opus_a16w16_persistent.scored_candidate.batch_host import committed_public_cases, run_batch
 
 
 class _Fake:
@@ -159,6 +162,95 @@ class DualWorkerTests(unittest.TestCase):
         results[0]["pid_gate"] = False
         with self.assertRaises(ValueError):
             aggregate_withheld(results, private, self.task, "a" * 64)
+
+    def test_batch_stops_before_opening_withheld_on_public_failure(self):
+        _, cases = committed_public_cases()
+        self.assertEqual(len(cases), 8)
+        self.assertNotIn(194, [case["k"] for case in cases])
+        with tempfile.TemporaryDirectory() as study_tmp, tempfile.TemporaryDirectory() as candidate_tmp:
+            study = Path(study_tmp)
+            (study / "private").mkdir(mode=0o700)
+            candidate = Path(candidate_tmp) / "kernel.cuh"
+            candidate.write_text("unchanged-header-test")
+            args = SimpleNamespace(candidate_header=candidate, study_root=study, code_root=HERE.parents[2],
+                                   batch_root=study / "private" / "batch", withheld_matrix=Path("/does/not/exist"),
+                                   host_gpu_report=None)
+            seen = []
+
+            def fail_public(script, source, case, root, env, hidden):
+                seen.append(case["id"])
+                self.assertIsNone(hidden)
+                return 1
+
+            report = run_batch(args, run_case=fail_public)
+            self.assertEqual(seen, [cases[0]["id"]])
+            self.assertEqual(report["status"], "public_incomplete_or_failed")
+            self.assertFalse((args.batch_root / "withheld").exists())
+            self.assertTrue((args.batch_root / "batch_report.json").exists())
+
+    def test_batch_requires_all_public_ratios_before_withheld(self):
+        _, cases = committed_public_cases()
+        with tempfile.TemporaryDirectory() as study_tmp, tempfile.TemporaryDirectory() as candidate_tmp:
+            study = Path(study_tmp)
+            (study / "private").mkdir(mode=0o700)
+            candidate = Path(candidate_tmp) / "kernel.cuh"
+            candidate.write_text("unchanged-header-test")
+            args = SimpleNamespace(candidate_header=candidate, study_root=study, code_root=HERE.parents[2],
+                                   batch_root=study / "private" / "batch", withheld_matrix=Path("/does/not/exist"),
+                                   host_gpu_report=None)
+
+            def slow_public(script, source, case, root, env, hidden):
+                self.assertIsNone(hidden)
+                root.mkdir(mode=0o700)
+                result = self._result(case)
+                result["source_check"]["candidate_header_sha256"] = sha256(candidate)
+                result["graph_performance"]["candidate_to_aiter_ratio"] = 1.06
+                (root / "result.json").write_text(json.dumps(result))
+                return 0
+
+            report = run_batch(args, run_case=slow_public)
+            self.assertEqual(report["public_completed"], len(cases))
+            self.assertEqual(report["status"], "public_noninferiority_failed_or_inconclusive")
+            self.assertFalse((args.batch_root / "withheld").exists())
+
+    def test_batch_runs_exact_hidden_after_public_gate(self):
+        _, cases = committed_public_cases()
+        matrix = private_matrix(json.loads(self.public.read_text()))
+        with tempfile.TemporaryDirectory() as study_tmp, tempfile.TemporaryDirectory() as candidate_tmp:
+            study = Path(study_tmp)
+            (study / "private").mkdir(mode=0o700)
+            candidate = Path(candidate_tmp) / "kernel.cuh"
+            candidate.write_text("unchanged-header-test")
+            private_path = study / "private" / "withheld.json"
+            private_path.write_text(json.dumps(matrix))
+            args = SimpleNamespace(candidate_header=candidate, study_root=study, code_root=HERE.parents[2],
+                                   batch_root=study / "private" / "batch", withheld_matrix=private_path,
+                                   host_gpu_report=None)
+            seen = []
+
+            def fake_case(script, source, case, root, env, hidden):
+                seen.append((case["id"], hidden))
+                root.mkdir(mode=0o700)
+                result = self._result(case, withheld=hidden is not None)
+                result["source_check"]["candidate_header_sha256"] = sha256(candidate)
+                (root / "result.json").write_text(json.dumps(result))
+                return 0
+
+            def committed_sha(path):
+                return self.task["withheld_matrix_sha256"] if Path(path) == private_path else sha256(path)
+
+            with patch("tasks.opus_a16w16_persistent.scored_candidate.batch_host.committed_withheld_cases",
+                       return_value=(matrix, matrix["cases"])) as open_hidden, patch(
+                           "tasks.opus_a16w16_persistent.scored_candidate.batch_host.sha256",
+                           side_effect=committed_sha):
+                report = run_batch(args, run_case=fake_case)
+            self.assertEqual(report["status"], "full_matrix_ready_for_review")
+            self.assertEqual(report["public_completed"], 8)
+            self.assertEqual(report["withheld_completed"], 12)
+            self.assertEqual([row[0] for row in seen[:8]], [case["id"] for case in cases])
+            self.assertTrue(all(hidden is None for _, hidden in seen[:8]))
+            self.assertTrue(all(hidden == private_path for _, hidden in seen[8:]))
+            open_hidden.assert_called_once()
 
 
 if __name__ == "__main__":

@@ -78,7 +78,7 @@ This task can expose wave/LDS/barrier and scheduler-sensitive mistakes; it
 does **not** test a cross-workgroup spin-wait, inter-rank protocol, or GPU
 forward-progress theorem.
 
-## Production control under development
+## Production control
 
 [`dual_worker.py`](dual_worker.py) is a trusted, **one-case** production
 control, not a complete task score. It launches separate Python main-process
@@ -110,6 +110,37 @@ repeat sessions, and any required hidden-data isolation.
 The current pre/post GPU PID checks and MAD screen do not exclude a short-lived
 foreign workload between samples; scored admission should add an external
 contention monitor or explicitly retain that residual uncertainty.
+
+The first [production seed smoke](PRODUCTION_SEED_SMOKE.md) passed **one**
+unchanged-header public case. [`batch_host.py`](batch_host.py) is the next
+trusted control: it runs all eight public cases sequentially, aggregates the
+exact matrix, and opens the committed withheld manifest only after every
+public case passes the <=1.05 and evidence gates. It then runs twelve
+withheld correctness cases and writes per-case raw results, logs, hashes, and
+an aggregate report under a new mode-700 private batch root. It stops on a
+failed/incomplete case; no hidden stage is opened after a public failure.
+Each case has a 20-minute Docker watchdog and 1300-second host watchdog; the
+entire batch has a 90-minute budget. The seed case took about 98 seconds
+including clean JIT, so an all-pass batch may take roughly 30-45 minutes.
+These are operating limits, not proof that the remaining buckets pass.
+
+Run only from a trusted host in an exclusive MI350X window, using a clean
+checkout of the exact runner commit and the frozen candidate header:
+
+```bash
+PYTHONPATH="$CODE" python3 -m tasks.opus_a16w16_persistent.scored_candidate.batch_host \
+  --candidate-header "$STUDY/aiter/csrc/opus_gemm/include/gfx950/opus_gemm_pipeline_a16w16_persistent_gfx950.cuh" \
+  --study-root "$STUDY" --code-root "$CODE" \
+  --batch-root "$STUDY/private/opus-fullk-production-batch-001" \
+  --withheld-matrix "$STUDY/private/opus-fullk-v1/withheld.json" \
+  --host-gpu-report "$STUDY/private/opus-adversarial-20260929/host_gpu_report.txt"
+```
+
+The withheld path and raw report are private host inputs, never agent-visible.
+The printed summary deliberately omits hidden IDs and per-case metrics.
+This trusted replay is for nonadversarial research: native candidate code
+runs in the scorer process while the hidden manifest is mounted, so it does
+not establish confidentiality against malicious native code.
 
 CPU preflight: `python3 -m unittest
 tasks.opus_a16w16_persistent.scored_candidate.test_freeze -v`. Run
