@@ -38,3 +38,7 @@ time by 32. It resets state outside the timed interval and checks the final
 state/output against 32 CPU-oracle steps. This substantially amortizes host
 enqueue gaps; it is a separate, explicitly labeled feasibility measurement,
 not a retroactive replacement for the original samples or a scored task.
+Two [gfx950 graph-control runs](../results/2026-09-29-gdr-graph-feasibility.md)
+were noise-qualified and found this naive HIP candidate 5.76-5.85x slower
+than AITER, reversing the event-only appearance. The pilot remains a
+correctness control, not a performance-parity route.

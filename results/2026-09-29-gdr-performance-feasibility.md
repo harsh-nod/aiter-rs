@@ -40,9 +40,11 @@ and `bc0468a1e5d4ba464b958386f796cd3cb34487e21455da535bb7597867028e90`
 in order; raw samples remain off-repository on `mi350-2`.
 
 **Interpretation:** a HIP parity route looks plausible for this operator, but
-the current timing noise gate is not reproducibly qualified. This is still an
-unscored feasibility pilot, not one of the 36 planned trajectories. Before
-freezing a scored GDR task, add hidden correctness and repeated-state timing
-buckets, validate output/state guards across timing, preregister a stable
-measurement rule, and demonstrate the same outcome on repeat uncontended
-runs without relaxing the old gate after observing its failure.
+this event-only evidence cannot establish it. A later
+[32-call graph-replay control](2026-09-29-gdr-graph-feasibility.md) found the
+same naive HIP candidate about 5.8x **slower** than AITER in both public
+buckets, with repeatable noise-qualified samples. This is still an unscored
+feasibility pilot, not one of the 36 planned trajectories. Before freezing a
+scored GDR task, add hidden correctness and repeated-state timing buckets,
+validate output/state guards across timing, and demonstrate a plausible HIP
+parity route under a preregistered device-work measurement protocol.
