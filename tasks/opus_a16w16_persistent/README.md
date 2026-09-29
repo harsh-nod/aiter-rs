@@ -55,5 +55,10 @@ independent HIP shared-library build against this exact-kid boundary using
 guarded correctness and paired graph replay. It also documents the stricter
 single-header clean-JIT overlay route for future agent optimization tasks.
 An expanded [adversarial public matrix](ADVERSARIAL_FREEZE_DRAFT.md) is an
-offline freeze candidate only; its [pending receipt](ADVERSARIAL_ADMISSION_PENDING.md)
-keeps the six new GPU cases explicitly unadmitted.
+optimization-task freeze candidate. Its historical
+[pending receipt](ADVERSARIAL_ADMISSION_PENDING.md) preserves the pretrial
+state; the later [public admission](ADVERSARIAL_ADMISSION.md) passed all nine
+specific correctness/dispatch fixtures, but the K=194 one-hot pass did not
+generalize to random BF16 inputs. See the [K-tail causal repro](K_TAIL_REPRO.md)
+for the excluded partial-K case and the [graph feasibility receipt](ADVERSARIAL_GRAPH_FEASIBILITY.md)
+for eight full-K buckets. None of these controls is an agent trial.

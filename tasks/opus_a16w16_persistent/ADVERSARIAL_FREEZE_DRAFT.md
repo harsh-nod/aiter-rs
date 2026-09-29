@@ -1,6 +1,6 @@
 # OPUS persistent A16W16: adversarial task freeze candidate
 
-**Proposed public matrix, not GPU-admitted, not scored, zero agent trials.**
+**Historical freeze draft, not a scored task and zero agent trials.**
 This is a source-preserving optimization study of pinned AITER
 `868ccf62a0bcad3aa47f92728340ccb37ed4fb39` on one MI350X/gfx950. It
 is not a from-scratch GEMM task or evidence that an agent made any error.
@@ -8,10 +8,18 @@ The three existing cases in [`cases.json`](cases.json) passed AITER dispatch
 and the source-equivalent HIP adapter's guarded oracle and graph control;
 the six additions in
 [`adversarial_matrix_candidate.json`](adversarial_matrix_candidate.json)
-have **not** been run on the GPU. The CPU-side
+were unrun when this draft was written. The later
+[public admission receipt](ADVERSARIAL_ADMISSION.md) records 9/9 correctness
+on its specific fixtures and exact dispatch on MI350X. A subsequent
+[random-input K-tail repro](K_TAIL_REPRO.md) found that K=194 fails on both
+the pinned AITER path and the unchanged-source adapter; K=194 is excluded
+from any supported/scored matrix. The [graph feasibility receipt](ADVERSARIAL_GRAPH_FEASIBILITY.md)
+covers only the eight full-K cases.
+The CPU-side
 [`adversarial_matrix.py`](adversarial_matrix.py) validates their proposed
-domain and provides a separate Torch FP32 mathematical oracle. A source
-contract is not a runtime admission result.
+domain and provides a separate Torch FP32 mathematical oracle. The table's
+status column describes its **pretrial** status; use the later receipt for
+current disposition.
 
 ## Exact proposed boundary
 
@@ -44,7 +52,7 @@ header/adapter control is documented in [`FEASIBILITY.md`](FEASIBILITY.md).
 | `m-one-row-tail` | `(12033,4096,256)` | 300 | 3 | only one valid row in final M tile | proposed |
 | `n-first-vector-tail` | `(16384,2064,256)` | 300 | 2 | first 16 valid columns in final N tile | proposed |
 | `mn-combined-tail` | `(16383,2064,256)` | 300 | 2 | simultaneous M and N masks | proposed |
-| `k-partial-final-tile` | `(8192,4096,194)` | 300 | 2 | last K contribution at element 193; 4 ceil-div loops | proposed, runtime support unverified |
+| `k-partial-final-tile` | `(8192,4096,194)` | 300 | 2 | last K contribution at element 193; 4 ceil-div loops | excluded after random-input failure; historical fixture only |
 | `k-min-even-loop` | `(8192,4096,128)` | 1300 | 2 | two-loop prologue/epilogue boundary | proposed |
 | `xcd-padded-grid` | `(4096,16384,128)` | 1300 | 4 | `split_m=4`, grid-Y padded to 8, overshoot WGs | proposed |
 
@@ -52,6 +60,9 @@ The generated BF16 patterns include random, alternating signed
 checkerboard, exact cancellation, and a last-K one-hot. Every case has two
 input phases whose FP32 references differ. These are public fixtures only;
 do not put withheld shapes, seeds, or raw private GPU results in this repo.
+The one-hot K=194 fixture did not expose dependence on values in physical
+row padding. Its pattern-specific pass must not be generalized to arbitrary
+BF16 inputs.
 
 ## Correctness admission protocol
 
@@ -89,6 +100,8 @@ are outside the **standalone adapter** ABI. The pinned AITER
 does support K-contiguous A/B with padded row strides, but those are a
 different route needing an extended trusted ABI and fresh parity admission;
 do not silently include them in this matrix or misclassify their rejection.
+The later AITER-only padded-row K=194 control is a diagnostic, not an
+extension of the standalone adapter ABI or a scored candidate case.
 
 ## Agent-task freeze gates
 
