@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "task_id": "topk-decode-gfx950-stable-long",
+  "admission_status": "excluded_from_current_hip_agent_pilot",
+  "aiter_sha": "868ccf62a0bcad3aa47f92728340ccb37ed4fb39",
+  "entry_point": "aiter.ops.topk.top_k_per_row_decode",
+  "device": {
+    "sku": "AMD Instinct MI350X",
+    "arch": "gfx950",
+    "card_model": "0x75a0",
+    "host_report_sha256": "0707955d447ea0511e38fb0ab57c024e74fdc405452790db87d8e97989205ceb"
+  },
+  "container_image_id": "sha256:90885f811fc53d8d03fb6ab6d05b5f0a2c88e277f26f56d19e6b990663a5626b",
+  "oracle_sha256": "aea4b0288f83007a08abc56ab912a10a030bdb4b94728f36c5a200a1c95d90c2",
+  "probe_sha256": "d74084f1f1ec7e8cea8a633259b3e4da4aa4b3b3da139a4cedbe86cddc114da6",
+  "private_matrix_sha256": "32be7a04c9dd723126f5884bc4446fa0587bc8b72339e151f2d96da706a257aa",
+  "visible_result_sha256": "521dadeebe9128a95285c932c0b92c35e423a7bb8ffa3fe120c8392e72975cc2",
+  "withheld_result_sha256": "521dadeebe9128a95285c932c0b92c35e423a7bb8ffa3fe120c8392e72975cc2",
+  "visible_case_instances": 5,
+  "withheld_case_instances": 5,
+  "repeats_per_instance": 2,
+  "passed_case_instances": 10,
+  "indices_and_value_bits_equal_calls": 20,
+  "dispatch_calls": {
+    "flydsl_long": 20,
+    "flydsl_radix_one_block": 0,
+    "hip": 0
+  },
+  "performance": "not_run",
+  "agent_trials": 0,
+  "scored_types": 0,
+  "incidence_denominator_contribution": 0,
+  "remaining_gates": [
+    "same_contract_hip_shared_library_adapter",
+    "qualified_default_flydsl_performance_feasibility"
+  ]
+}
