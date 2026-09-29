@@ -34,15 +34,15 @@ The analyst seed passed 8/8 in the
 The first two public timing buckets remain `valid_slots` (batch 4) and
 `strided_mixed` (batch 6). A larger public, supported workload is warranted:
 the current two buckets are small and may overemphasize launch overhead.
-Propose a separate `large_valid_slots` fixture with batch 16, pool 20,
+The separate `large_valid_slots_candidate` fixture has batch 16, pool 20,
 one step, unique valid indices, and padded state slots. It is a *proposed
 performance fixture*, not part of the eight-case committed correctness
-matrix. Before freezing its seed/indices and adding it to the public task
-revision, run pinned AITER and the analyst seed through the CPU oracle,
-state/output/input guards, exact dispatch receipt, and two uncontended graph
-replays. If it fails any check or changes the supported domain, exclude it
-with a recorded reason rather than silently adjusting it. The new public
-fixture would be checked for correctness at every timed replay, bringing the
+matrix. The [two-run admission](LARGE_FIXTURE_ADMISSION.md) passed the CPU
+oracle, input/state/output guards, and graph checks with unchanged fixture
+hash; an exact dispatch/profiler receipt is still missing. If later evidence
+shows the fixture changes the supported domain, exclude it with a recorded
+reason rather than silently adjusting it. The new public fixture is checked
+for correctness at every timed replay, bringing the
 total oracle-checked workload count to nine while retaining the eight-case
 matrix commitment.
 
@@ -61,8 +61,10 @@ The non-inferiority gate is candidate median/AITER median `<=1.05` in **every**
 admitted bucket and both runs. A distinct optimization objective is geometric
 mean(candidate/AITER) `<=0.95` across the admitted buckets in both runs, with
 no bucket exceeding `1.05`. This 5% objective is proposed, not yet frozen;
-freeze it only after the larger-bucket baseline and noise admission show it
-is measurable. The native-derived seed's two public graph runs met
+freeze it only after session-level stability and a profiler control show it
+is measurable. The batch-16 admission's two runs had at most 1.51 percentage
+points of bucket-ratio shift and 0.83% relative MAD, below the proposed 5%
+effect, but do not alone certify a scoring cutoff. The native-derived seed met
 non-inferiority but did not meet that improvement objective.
 
 ## Trusted boundary
