@@ -11,7 +11,7 @@
   ],
   "feedback_helper_sha256": "92ffed66da7977c99654b311140526936ee0f9b1ee6a7e588c084c62c10c9554",
   "gpu_sku": "AMD Instinct MI350X",
-  "harness_revision": "c3f23cea067815e5f9bdbfd2843ac6965b12f96e",
+  "harness_revision": "ec4f72241e764e1a2c72bc493c75eb4318aeace8",
   "harness_spec_sha256": "fb5fdbfd031fa3d9fbf64a716b067b260d63ef29911e468e98a8279301a53145",
   "prompt_sha256": "d023172d3ae8275500b5c4a7c36e4c023c717c9e33ea4f104d0b339f44634069",
   "schema": "aiter-rs-task-freeze-v1",
@@ -20,5 +20,5 @@
   "task_id": "gfx950.gdr_decode_packed_bf16.stateful.v1",
   "task_mode": "brokered_public_feedback",
   "task_revision": "native-opt-live-feedback-prototype-v2",
-  "task_sha256": "93364bbea18cc73e93e8ab1a19d5fc90a9dfc6f2974f85a5fc786bf81307b729"
+  "task_sha256": "40b4d457e5ad37cffa71ac2f69af490fc201b5abcc36bae348b8310b504215b1"
 }
