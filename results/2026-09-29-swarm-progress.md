@@ -29,10 +29,10 @@ contain commitments and sanitized aggregates.
 
 | Track | Current evidence | Admission status |
 | --- | --- | --- |
-| GDR decode | Naive HIP passed public correctness but was 5.76-5.85x slower under repeatable graph replay. A source-preserving AITER-derived HIP ABI seed passed 8/8 public+withheld correctness and two graph runs near 1.00x. A proposed batch-16 fixture also passed two three-bucket graph controls. | Credible HIP parity route, but the [optimization freeze](../tasks/gdr_native_optimization/FREEZE_DRAFT.md) remains a draft pending profiler, stability, and agent/private-data isolation gates. The published seed is an answer key for optimization, not blind from-spec trials. |
+| GDR decode | Naive HIP passed public correctness but was 5.76-5.85x slower under repeatable graph replay. A source-preserving AITER-derived HIP ABI seed passed 8/8 public+withheld correctness. [Profiler and stability controls](../tasks/gdr_native_optimization/PROFILER_STABILITY_RECEIPT.md) confirmed one same-symbol, same-geometry dispatch per side in three public buckets and two fresh graph sessions within 5% of AITER. The [public-only scorer smoke](../runs/tasks/gdr_native_optimization_v1/PUBLIC_SEED_SMOKE.md) passed six visible checks and three parity buckets; its geometric-mean ratio 1.0112 missed the proposed 0.95 improvement objective. | Credible HIP parity seed for an unscored, no-feedback optimization prototype. No live agent feedback broker, GDR-specific trusted post-agent hidden replay, or scored agent attempt yet. The seed is an answer key for optimization, not blind from-spec trials. |
 | MHC fused post/pre | Guarded analyst HIP passed 9/9 cases, but graph replay was 20-106x slower than AITER. | No credible HIP parity seed; unscored. |
 | Sparse prefill | Analyst HIP passed 5 public and 4 withheld correctness cases. Read-only post-graph verification passed, but two public graph buckets were 9.97x and 11.86x slower. | No credible HIP parity seed; unscored. |
-| OPUS persistent A16W16 GEMM | Three supported exact-kid gfx950 cases passed an independent Torch oracle twice; profiler confirmed persistent kernel symbols for kids 300 and 1300. An `N=2177` pretrial was excluded by the pinned `N % 16 == 0` tuner domain. | Correctness/dispatch only; no standalone HIP candidate, hidden matrix, or parity timing. |
+| OPUS persistent A16W16 GEMM | Three supported exact-kid gfx950 cases passed an independent Torch oracle twice; profiler confirmed persistent kernel symbols for kids 300 and 1300. A [source-equivalent standalone HIP adapter](../tasks/opus_a16w16_persistent/FEASIBILITY.md) passed the same three cases twice, was bitwise identical to AITER, and measured 0.9934/1.0001/0.9787 adapter/AITER in 32-call graph replay. A stream-zero adapter bug was caught before launch and fixed; it is not a scored agent mistake. An `N=2177` pretrial was excluded by the pinned `N % 16 == 0` tuner domain. | Plausible source-preserving parity route, but no hidden adversarial matrix, frozen agent optimization task, or agent trajectory. The adapter is an analyst control, not an independent rewrite. |
 | TopK long-row | Pinned FlyDSL route matched an independent oracle on 20 calls. | Not a HIP pilot without a parity adapter. |
 
 The separate AITER GDR `scale=NaN` validation bypass is tracked in the
@@ -49,10 +49,11 @@ The initial 36-trajectory pilot has six captures, all on one task. The
 configuration hints, not 10,000 distinct vetted HIP challenge types. Do not
 inflate type count with shape rows, repeated attempts, or AITER-only audits.
 
-Next: freeze and isolate the GDR native-seed optimization task with a
-profiler-backed performance boundary and realistic visible feedback; run
-independent agent attempts and preserve every failed intermediate snapshot.
-For megakernels, advance the exact-kid persistent GEMM from dispatch admission
-to a standalone HIP parity seed and hidden adversarial matrix. Keep the
-FlyDSL-only and binary-only megakernel paths outside source-level HIP
+Next: connect the GDR public broker and a GDR-specific trusted post-agent
+hidden replay before any **scored** attempt. Exploratory no-feedback captures
+can preserve failed intermediate snapshots, but remain outside the incidence
+denominator until a scored protocol is frozen. For megakernels, build a hidden
+adversarial matrix and clean-JIT source-overlay task for the exact-kid OPUS
+persistent GEMM; the standalone adapter is only a source-equivalent control.
+Keep FlyDSL-only and binary-only megakernel paths outside source-level HIP
 agent-error incidence until a legitimate same-boundary route exists.
