@@ -37,3 +37,8 @@ The [Python route discovery census](python_route_census.md) now scans all
 the gfx950 text search omits. Its generated index marks 8 static source
 reviews and 2,413 unreviewed symbols separately. Neither number is a
 dispatchable-kernel count or a task-type denominator.
+
+The [results census and 10,000-type gate](results_census.md) adds reproducible
+HIP/DSL source-entry hints, gfx950 code-object and CSV counts, concrete
+deduplication examples, and a conditional scale calculation. It does not
+turn those syntactic or compiled artifacts into scored task types.
