@@ -62,12 +62,24 @@ The `m=1025` fallback is a separate bucket and must compare to the matching
 low-level `mhc_post` + `mhc_pre_gemm_sqrsum` + `mhc_pre_big_fuse` sequence,
 with its output and scratch buffers also preallocated, not to a fused baseline.
 
-Only after a candidate passes the oracle, AITER cross-check, guards on inputs,
-outputs and workspace, and repeated-run checks should it enter performance
-measurement. Then use paired alternating HIP event samples after warmup on the
-same exact GPU, report raw samples/variance and per-bucket median and p95, and
-require median no more than 5% above AITER in **each** frozen bucket. Reject
-samples with foreign GPU occupancy, invalid process attestation, SKU/clock
-drift, or unstable baseline. No parity timing or scored eligibility is claimed
-by this admission pilot; the HIP scorer/guarded implementation and vetted
-candidate are still required.
+`mhc_score.py` now exercises the C ABI with guarded and 256-byte-aligned
+inputs, outputs, and workspace, checks all four results against both the CPU
+oracle and pinned AITER, and invokes the candidate twice from reset output and
+workspace sentinels. Its `--unscored-analyst` mode is the **only** enabled
+mode; `analyst_naive_mhc.hip` is an explicitly analyst-written correctness
+baseline, not an agent trial. The candidate library is loaded in the scorer
+process, so scored untrusted submissions still require a separate isolated
+execution boundary and private-input handling.
+
+Timing is opt-in. Python-call GPU events are retained only as diagnostic
+samples because host enqueue gaps can contaminate short operations.
+`--graph-repetitions 32` captures each preallocated full-call boundary 32
+times and measures graph replays, amortizing host launch overhead; it still
+requires quiet-GPU PID checks, post-run output/guard checks, repeated sampling,
+and a baseline relative-MAD no greater than 5%. Report raw samples, median,
+p95, and each bucket's ratio. The frozen per-bucket target is candidate median
+no more than 5% above AITER; an aggregate cannot compensate for a slow tail.
+Graph replay or a device-kernel profiler control is required before any
+kernel-speed conclusion. No scored eligibility is claimed by this pilot until
+a candidate with a credible parity route passes these gates and an isolated
+scored harness exists.
