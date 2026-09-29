@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "task_id": "gfx950.mhc_fused_post_pre.fp32_weights.v1",
+  "aiter_sha": "868ccf62a0bcad3aa47f92728340ccb37ed4fb39",
+  "gpu_sku": "AMD Instinct MI350X",
+  "gpu_pci_device_id": "0x75a0",
+  "target_arch": "gfx950",
+  "cases": [
+    {"id": "m1_min", "m": 1, "hidden_size": 512, "seed": 9501001, "route": "fused"},
+    {"id": "m17_tile_tail", "m": 17, "hidden_size": 512, "seed": 9501017, "route": "fused"},
+    {"id": "m31_tile_tail", "m": 31, "hidden_size": 768, "seed": 9501031, "route": "fused"},
+    {"id": "m33_rank2", "m": 33, "hidden_size": 768, "seed": 9501033, "route": "fused", "post_rank2": true},
+    {"id": "m65_norm", "m": 65, "hidden_size": 1280, "seed": 9501065, "route": "fused", "norm": true},
+    {"id": "m127_wide", "m": 127, "hidden_size": 1024, "seed": 9501127, "route": "fused"},
+    {"id": "m1023_bound_tail", "m": 1023, "hidden_size": 512, "seed": 9502023, "route": "fused"},
+    {"id": "m1024_bound", "m": 1024, "hidden_size": 512, "seed": 9502024, "route": "fused"},
+    {"id": "m1025_nonfused_boundary", "m": 1025, "hidden_size": 768, "seed": 9502025, "route": "large_m_fallback"}
+  ]
+}
