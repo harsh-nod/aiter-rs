@@ -58,7 +58,7 @@ CPU; it is not a GPU scorer.
 The first and [second](SECOND_SESSION.md) sessions compare pinned production
 AITER against an unchanged-source standalone HIP adapter. They support
 feasibility but **do not establish production editable-header parity**.
-Before scored eligibility: implement and test a trusted production overlay
+Before scored eligibility: validate a trusted production overlay
 scorer; use two process-isolated `module_deepgemm_opus` builds with new,
 disjoint `AITER_JIT_DIR` paths (the module name and Python import cache are
 otherwise shared); attest source/header, image/hipcc, GPU and JIT artifacts;
@@ -77,6 +77,33 @@ and [store drain/barrier](https://github.com/ROCm/aiter/blob/868ccf62a0bcad3aa47
 This task can expose wave/LDS/barrier and scheduler-sensitive mistakes; it
 does **not** test a cross-workgroup spin-wait, inter-rank protocol, or GPU
 forward-progress theorem.
+
+## Production control under development
+
+[`dual_worker.py`](dual_worker.py) is a trusted, **one-case** production
+control, not a complete task score. It launches separate Python main-process
+workers for pinned AITER and the editable-header overlay. Each imports its
+own AITER tree, builds `module_deepgemm_opus` in a fresh disjoint JIT cache,
+checks the loaded module's origin/hash, exact kid/has-OOB profiler symbol,
+six-step correctness, and identical hashed BF16 graph inputs. The parent
+serializes alternating replay commands, accepts only the two owned GPU PIDs,
+and inspects outputs without launching another operator. Raw outputs and
+worker logs remain under a mode-700 private run directory. A worker timeout
+or runtime exception is inconclusive, never an agent correctness miss.
+
+The trusted host wrapper [`run_pair_host.sh`](run_pair_host.sh) prepares the
+single-header overlay, uses the pinned image with network disabled and a
+20-minute outer per-case watchdog, and cleans up only its named container.
+It preserves an `attempt.json` and log hash when no production result is
+written. Run it only in an exclusive MI350X window, with `AITERRS_STUDY_ROOT`
+set, a trusted candidate-header snapshot, a public case ID, and a **new**
+private run directory. It is not an agent-visible feedback command. The
+trusted [`aggregate.py`](aggregate.py) refuses fewer than eight exact public
+case results, compares per-bucket <=1.05 and the separate geomean <=.95
+target, and optionally requires every committed withheld correctness case.
+One case cannot imply task parity. Even after an all-case aggregate passes,
+this task remains `scored_eligible=false` pending independent review,
+repeat sessions, and any required hidden-data isolation.
 
 CPU preflight: `python3 -m unittest
 tasks.opus_a16w16_persistent.scored_candidate.test_freeze -v`. Run

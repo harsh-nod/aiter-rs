@@ -4,11 +4,16 @@ from __future__ import annotations
 
 import copy
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-from .freeze import HERE, clean_jit_paths, performance_gate, private_matrix, sha256, validate_matrix, validate_task, write_private
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+from tasks.opus_a16w16_persistent.scored_candidate.freeze import (
+    HERE, clean_jit_paths, performance_gate, private_matrix, sha256,
+    validate_matrix, validate_task, write_private,
+)
 
 
 class FreezeTests(unittest.TestCase):

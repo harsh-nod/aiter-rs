@@ -159,6 +159,8 @@ def validate_task(task: dict, public: dict) -> None:
         raise ValueError("independent oracle contract changed")
     if task.get("withheld_matrix_sha256") != WITHHELD_MATRIX_SHA256:
         raise ValueError("private matrix commitment changed")
+    if task.get("withheld_generator_sha256") != sha256(Path(__file__)):
+        raise ValueError("private matrix generator changed")
 
 
 def clean_jit_paths(source: Path, baseline_jit: Path, candidate_jit: Path, overlay: Path) -> None:
