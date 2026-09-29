@@ -28,6 +28,7 @@ aggregate outcomes and cryptographic commitments appear here.
 | `preview01` | 6/6 | 4/4 | 0/3 <=1.05 | `6be5db5376c854b23461fc9ff8b06887fe5e09fc56a3ebfeeb218102684d3437` | `9f7af885997777c2842ffbaf3a91daa3201d4265a4ee1ec016405e192de93623` |
 | `preview02` | 6/6 | 4/4 | 0/3 <=1.05 | `f191caa48bb4f6ba37d7aa5eb6b07aef94e20d5f297405a6ab05836b83f61eba` | `d34eac29db8267c0ce03c923b5528b7107b08b5f83aaf12b2fe4642b9421df50` |
 | `preview03` | 6/6 | 4/4 | 2/3 <=1.05 | `2bb4d82d48b8ab5571067cb2592e62eda677dd36b521a0b32a9a1726a59a81bb` | `b5bf97b10dd7ad2e6fe9da650c99f499d3cb8a02597b35d35e9f0612bf6228e9` |
+| `preview03` public repeat (same candidate) | 6/6 | Not rerun | 2/3 <=1.05 | Same capture | Same binary |
 
 The withheld scorer runs stateful correctness only; it does not benchmark
 withheld inputs. Both public and withheld stages attested the pinned AITER SHA
@@ -53,14 +54,24 @@ by the SHA256 values below.
 | `preview03` | Valid slots | 1.002299 | 0.001772 | 0.000888 | Yes |
 | `preview03` | Strided mixed | 1.003089 | 0.001819 | 0.001265 | Yes |
 | `preview03` | Batch 16 | 1.062332 | 0.004965 | 0.006570 | Yes |
+| `preview03` repeat | Valid slots | 1.005677 | 0.001065 | 0.000883 | Yes |
+| `preview03` repeat | Strided mixed | 1.005309 | 0.002556 | 0.001824 | Yes |
+| `preview03` repeat | Batch 16 | 1.072518 | 0.004681 | 0.004833 | Yes |
 
 The public spec proposes <=1.05 per bucket and <=0.95 geometric-mean
 improvement. All three previews pass the tested functionality but miss the
 per-bucket performance boundary in this session; `preview01` and `preview02`
-show clear measured regressions. `preview03` misses only the Batch 16 bucket
-by 1.2 percentage points beyond the threshold, so a fresh independent session
-is needed before treating that narrow miss as stable. These outcomes do not
-establish joint parity, agent-error incidence, or the absence of other bugs.
+show clear measured regressions. `preview03` misses only the Batch 16 bucket:
+1.062332 in the first session and 1.072518 in a fresh public-only session.
+That repeat used the identical source SHA256
+`e6b6c12b008325280647f68f41e2fb504ac5fdfb9fd2c74dfbc90b0ff2d03935`
+and binary SHA256
+`b5bf97b10dd7ad2e6fe9da650c99f499d3cb8a02597b35d35e9f0612bf6228e9`,
+and again had 6/6 visible checks, three noise-qualified buckets, and clean
+pre/post GPU PID gates. Its withheld cases were deliberately not rerun.
+This reproduces the narrow performance miss under the same setup, not a scored
+joint-parity conclusion. These outcomes do not establish agent-error
+incidence or the absence of other bugs.
 
 ## Commitments
 
@@ -70,6 +81,7 @@ establish joint parity, agent-error incidence, or the absence of other bugs.
 | `preview01` | `85e3a9b621cab88f78df2774ab086b708573904469c31376b19c49967b2c2a61` | `ae938eed04885cc58bff8d1f7adc13cc75934e1d1661daf9dd2e0dd55c073d94` | `3faee5d9b5c5a3b3c404e1f72df3b45a80c54420fda8ea7ed5d1d2bf0b2bee0e` |
 | `preview02` | `05e3b4bb2ac9ca4f7b29cb7001c3d57c1c296aadd69e581edfee85d2a7ab97a8` | `2e643ac2b8dbb893ba58ebd86d6ff0d52c9debff8fe299c171881417d6c8e57b` | `fc355fa14702abb8c2dfe6780e2fc01e123fa550f46d03162c29eadc3c25d47d` |
 | `preview03` | `83395b591717c4f147d8a8d8990143b661a67a63f32adbb99ac22fdb25cfe858` | `f925e2bc4ce3eada345ba751593f14f59917b3f26184d1c67f97a6572b5150f3` | `45cffd742024859eade8f2b2e009280dafeab50798d2478f12a7bbaa1ea736f5` |
+| `preview03` public repeat | `42af083db62c086eb9656e3443b76892a7ddbfe481cf0dea25f7da6be402af5e` | Not rerun | Not applicable |
 
 ## Infrastructure History And Limits
 
