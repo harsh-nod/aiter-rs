@@ -64,7 +64,7 @@ does not establish a supported-domain AITER bug. Any confirmed baseline
 finding should be separately minimized and attributed to AITER; it cannot
 be counted as an error made by an agent in a later HIP trial.
 
-## Bounded fixed-scale runtime probe (not run here)
+## Bounded fixed-scale runtime probe
 
 [`probe_scale_nan.py`](probe_scale_nan.py) is a read-only-to-repo, single-process
 probe for the P0 hypothesis. It verifies the pinned checkout and exact
@@ -90,3 +90,9 @@ returns, the JSON labels it a *candidate validation bypass, contract
 pending*, not a confirmed bug. An unexpected control failure is
 inconclusive. Never run this concurrently with another GPU study or count
 the outcome as agent-authored error.
+
+The [2026-09-29 gfx950 run](../../../results/2026-09-29-gdr-scale-nan.md)
+confirmed the fixed-scale wrapper bypass: `scale=1.0` was rejected, while
+`scale=NaN` returned all-NaN output. The updated state stayed finite and
+bitwise equal to the finite-scale control. This is an AITER wrapper finding,
+not an agent-produced error or a device synchronization finding.
