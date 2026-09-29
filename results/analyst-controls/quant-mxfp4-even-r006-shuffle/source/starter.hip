@@ -1,0 +1,159 @@
+#include <hip/hip_runtime.h>
+#include <stdint.h>
+
+namespace {
+
+__device__ __forceinline__ float bits_to_float(uint32_t bits) {
+    union {
+        uint32_t u;
+        float f;
+    } v;
+    v.u = bits;
+    return v.f;
+}
+
+__device__ __forceinline__ uint32_t float_to_bits(float x) {
+    union {
+        float f;
+        uint32_t u;
+    } v;
+    v.f = x;
+    return v.u;
+}
+
+__device__ __forceinline__ float pow2_int(int exp) {
+    if (exp >= -126) {
+        return bits_to_float(static_cast<uint32_t>(exp + 127) << 23);
+    }
+    return bits_to_float(0x00400000u); // 2^-127, used for the all-zero scale.
+}
+
+__device__ __forceinline__ float fp16_abs_to_float(uint16_t x) {
+    const uint32_t exp = (x >> 10) & 0x1fu;
+    const uint32_t mant = x & 0x03ffu;
+    if (exp == 0) {
+        return static_cast<float>(mant) * 5.9604644775390625e-8f;
+    }
+    return bits_to_float(((exp + (127u - 15u)) << 23) | (mant << 13));
+}
+
+__device__ __forceinline__ float bf16_abs_to_float(uint16_t x) {
+    return bits_to_float(static_cast<uint32_t>(x & 0x7fffu) << 16);
+}
+
+__device__ __forceinline__ uint8_t scale_byte_from_amax(float amax) {
+    const uint32_t r_bits = (float_to_bits(amax) + 0x00200000u) & 0x7f800000u;
+    int exponent = -127;
+    if (r_bits != 0) {
+        exponent = static_cast<int>(r_bits >> 23) - 129;
+        exponent = exponent < -127 ? -127 : exponent;
+        exponent = exponent > 127 ? 127 : exponent;
+    }
+    return static_cast<uint8_t>(exponent + 127);
+}
+
+__device__ __forceinline__ uint8_t quantize_e2m1_even(float scaled_abs, bool negative) {
+    uint8_t code;
+    if (scaled_abs <= 0.25f) {
+        code = 0;
+    } else if (scaled_abs < 0.75f) {
+        code = 1;
+    } else if (scaled_abs <= 1.25f) {
+        code = 2;
+    } else if (scaled_abs < 1.75f) {
+        code = 3;
+    } else if (scaled_abs <= 2.5f) {
+        code = 4;
+    } else if (scaled_abs < 3.5f) {
+        code = 5;
+    } else if (scaled_abs <= 5.0f) {
+        code = 6;
+    } else {
+        code = 7;
+    }
+    return negative ? static_cast<uint8_t>(code | 0x8u) : code;
+}
+
+template <int DType>
+__global__ __launch_bounds__(256) void quant_mxfp4_even_kernel(
+    const uint16_t* __restrict__ input,
+    uint8_t* __restrict__ packed_output,
+    uint8_t* __restrict__ scale_output,
+    int64_t num_groups) {
+    constexpr int groups_per_block = 8;
+    const int tid = static_cast<int>(threadIdx.x);
+    const int lane_in_group = tid & 31;
+    const int group_in_block = tid >> 5;
+    const int64_t group = static_cast<int64_t>(blockIdx.x) * groups_per_block + group_in_block;
+
+    float abs_x = 0.0f;
+    bool negative = false;
+    if (group < num_groups) {
+        const uint16_t raw = input[group * 32 + lane_in_group];
+        negative = (raw & 0x8000u) != 0;
+        const uint16_t abs_raw = static_cast<uint16_t>(raw & 0x7fffu);
+        abs_x = DType == 0 ? fp16_abs_to_float(abs_raw) : bf16_abs_to_float(abs_raw);
+    }
+
+    float amax = abs_x;
+    amax = fmaxf(amax, __shfl_xor(amax, 16));
+    amax = fmaxf(amax, __shfl_xor(amax, 8));
+    amax = fmaxf(amax, __shfl_xor(amax, 4));
+    amax = fmaxf(amax, __shfl_xor(amax, 2));
+    amax = fmaxf(amax, __shfl_xor(amax, 1));
+
+    const uint8_t scale_byte = scale_byte_from_amax(amax);
+    const int exponent = static_cast<int>(scale_byte) - 127;
+    const float scaled_abs = abs_x * pow2_int(-exponent);
+    const uint8_t nibble = quantize_e2m1_even(scaled_abs, negative);
+
+    if (group < num_groups) {
+        if (lane_in_group == 0) {
+            scale_output[group] = scale_byte;
+        }
+        const uint8_t hi = static_cast<uint8_t>(__shfl_down(static_cast<unsigned int>(nibble), 1));
+        if ((lane_in_group & 1) == 0) {
+            packed_output[group * 16 + (lane_in_group >> 1)] = static_cast<uint8_t>(nibble | (hi << 4));
+        }
+    }
+}
+
+} // namespace
+
+// dtype: 0 = FP16, 1 = BF16. Pointers address distinct device buffers.
+// Enqueue on stream and return a hipError_t integer; do not synchronize.
+extern "C" int aiter_rs_quant_mxfp4_even(
+    const void* input,
+    void* packed_output,
+    void* scale_output,
+    int64_t rows,
+    int64_t cols,
+    int dtype,
+    void* stream) {
+    if (input == nullptr || packed_output == nullptr || scale_output == nullptr ||
+        rows <= 0 || cols <= 0 || (cols & 31) != 0) {
+        return static_cast<int>(hipErrorInvalidValue);
+    }
+
+    const int64_t num_groups = rows * (cols >> 5);
+    const dim3 block(256);
+    const dim3 grid(static_cast<unsigned int>((num_groups + 7) >> 3));
+    hipStream_t hip_stream = reinterpret_cast<hipStream_t>(stream);
+
+    if (dtype == 0) {
+        hipLaunchKernelGGL((quant_mxfp4_even_kernel<0>), grid, block, 0, hip_stream,
+                           static_cast<const uint16_t*>(input),
+                           static_cast<uint8_t*>(packed_output),
+                           static_cast<uint8_t*>(scale_output),
+                           num_groups);
+    } else if (dtype == 1) {
+        hipLaunchKernelGGL((quant_mxfp4_even_kernel<1>), grid, block, 0, hip_stream,
+                           static_cast<const uint16_t*>(input),
+                           static_cast<uint8_t*>(packed_output),
+                           static_cast<uint8_t*>(scale_output),
+                           num_groups);
+    } else {
+        return static_cast<int>(hipErrorInvalidValue);
+    }
+    return static_cast<int>(hipGetLastError());
+}

@@ -1,0 +1,11 @@
+--- a/starter.hip
++++ b/starter.hip
+@@ -111,8 +111,8 @@ __global__ __launch_bounds__(256) void quant_mxfp4_even_kernel(
+         if (lane_in_group == 0) {
+             scale_output[group] = scale_byte;
+         }
++        const uint8_t hi = static_cast<uint8_t>(__shfl_down(static_cast<unsigned int>(nibble), 1));
+         if ((lane_in_group & 1) == 0) {
+-            const uint8_t hi = static_cast<uint8_t>(__shfl_down(static_cast<unsigned int>(nibble), 1));
+             packed_output[group * 16 + (lane_in_group >> 1)] = static_cast<uint8_t>(nibble | (hi << 4));
+         }
