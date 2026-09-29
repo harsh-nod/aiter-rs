@@ -13,6 +13,9 @@ compiles the frozen source directly with pinned `hipcc -O3 -shared -fPIC
 public correctness set covers valid slots, invalid sentinels, noncontiguous
 strides, repeated state updates, and a separate batch-16 fixture. The
 proposed performance buckets are valid slots, strided mixed, and batch 16.
+The public correctness contract also checks an explicit HIP stream handle
+`0` on a supported valid-slot update. Treat it as a host-adapter requirement,
+not a separate performance workload.
 
 No interactive GPU feedback is connected for this prototype. Do not infer
 success from local compilation alone. A trusted public-only feedback broker

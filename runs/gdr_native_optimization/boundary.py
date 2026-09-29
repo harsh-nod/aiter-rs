@@ -99,7 +99,7 @@ def validate_task(task_dir: Path = TASK_DIR) -> tuple[dict, dict]:
         raise ValueError("public case commitment mismatch")
     spec = _read(starter / "public/spec.json")
     fixture = _read(starter / "public/large_fixture.json")
-    ids = [case["id"] for case in spec["cases"]] + [fixture["case"]["id"]]
+    ids = [case["id"] for case in spec["cases"]] + [fixture["case"]["id"], "default_stream_zero"]
     if ids != contract["visible_correctness_case_ids"] or not set(
         contract["benchmark_case_ids"]
     ).issubset(ids):
@@ -144,11 +144,15 @@ def compile_argv(snapshot: Path, output: Path, task: dict) -> list[str]:
 
 
 def public_container_command(snapshot: Path, repo: Path, aiter: Path, output: Path,
-                             task: dict, image: str, kind: str = "benchmark") -> list[str]:
+                             host_gpu_report: Path, task: dict, image: str,
+                             kind: str = "benchmark") -> list[str]:
     """Construct a public-only Docker invocation; no withheld path is accepted."""
     if kind not in {"correctness", "benchmark"}:
         raise ValueError("unknown public feedback kind")
     snapshot, repo, aiter, output = (path.resolve() for path in (snapshot, repo, aiter, output))
+    host_gpu_report = host_gpu_report.resolve()
+    if not host_gpu_report.is_file() or sha256(host_gpu_report) != task["host_gpu_report_sha256"]:
+        raise ValueError("trusted host GPU report differs from task pin")
     if not output.is_dir() or any(output.iterdir()):
         raise ValueError("public output must be a fresh empty host directory")
     if output.stat().st_mode & 0o077:
@@ -172,10 +176,11 @@ def public_container_command(snapshot: Path, repo: Path, aiter: Path, output: Pa
         (snapshot, "/workspace/snapshot", True),
         (repo, "/workspace/aiter-rs", True),
         (aiter, "/workspace/aiter", True),
+        (host_gpu_report, "/workspace/attestation/gpu.json", True),
         (output, "/workspace/output", False),
     )
     command = [
-        "docker", "run", "--rm", "--network=none", "--device=/dev/kfd",
+        "docker", "run", "--rm", "--network=none", "--pid=host", "--device=/dev/kfd",
         "--device=/dev/dri", "--group-add", "video", "--group-add", "render",
         "--entrypoint", "python3", "--workdir", "/workspace/aiter-rs",
     ]
@@ -187,6 +192,7 @@ def public_container_command(snapshot: Path, repo: Path, aiter: Path, output: Pa
         "--snapshot", "/workspace/snapshot", "--aiter-source", "/workspace/aiter",
         "--task-dir", "/workspace/aiter-rs/runs/tasks/gdr_native_optimization_v1",
         "--output", "/workspace/output", "--kind", kind,
+        "--host-gpu-report", "/workspace/attestation/gpu.json",
     ]
     return command
 
@@ -220,7 +226,7 @@ def sanitize_feedback(raw: dict, request_id: int, source_sha: str,
         "schema": RESPONSE_SCHEMA,
         "request_id": request_id,
         "source_sha256": source_sha,
-        "status": raw.get("status") if raw.get("status") in {"complete", "correctness_failed", "compile_failed"} else "error",
+        "status": raw.get("status") if raw.get("status") in {"complete", "correctness_failed", "compile_failed", "environment_invalid"} else "error",
         "visible_case_results": cases,
         "benchmark_bucket_results": clean_buckets,
         "raw_result_sha256": raw_sha,

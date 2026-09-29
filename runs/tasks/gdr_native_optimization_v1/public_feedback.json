@@ -8,7 +8,8 @@
     "invalid_sentinels",
     "strided_mixed",
     "repeated_state",
-    "large_valid_slots_candidate"
+    "large_valid_slots_candidate",
+    "default_stream_zero"
   ],
   "benchmark_case_ids": [
     "valid_slots",

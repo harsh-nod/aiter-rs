@@ -25,8 +25,47 @@ from runs.gdr_native_optimization.boundary import (
 )
 
 
+class EnvironmentInvalidError(RuntimeError):
+    pass
+
+
+def verify_gpu_pid_probe(raw: str, active_pids: list[int], own_pid: int, stage: str) -> dict:
+    if "KFD process information" not in raw or "PID" not in raw:
+        raise EnvironmentInvalidError(f"{stage}: GPU process probe unavailable")
+    if own_pid not in active_pids:
+        raise EnvironmentInvalidError(f"{stage}: scorer PID not visible to ROCm")
+    foreign = [pid for pid in active_pids if pid != own_pid]
+    if foreign:
+        raise EnvironmentInvalidError(f"{stage}: foreign active GPU processes present")
+    return {"stage": stage, "self_pid_visible": True, "foreign_active_count": 0}
+
+
+def default_stream_zero_case(plugin, candidate, case: dict) -> dict:
+    import torch
+
+    initial_state = plugin.make_initial_state(case)
+    expected_state = initial_state.clone()
+    cpu_inputs = plugin.make_step_inputs(case, 0)
+    expected_out = plugin.oracle_step(cpu_inputs, case["indices"], expected_state)
+    with torch.cuda.stream(torch.cuda.default_stream()):
+        gpu_inputs, input_guards = plugin.gpu_step_inputs(cpu_inputs, case)
+        gpu_state = plugin.guarded_state(
+            initial_state, slot_padding=bool(case.get("state_slot_padding", False))
+        )
+        gpu_out = plugin.guarded_output(case["batch"])
+        candidate.run(gpu_inputs, gpu_state.tensor, gpu_out.tensor, 0)
+    torch.cuda.synchronize()
+    plugin.compare_step(
+        cpu_inputs, case["indices"], expected_out, expected_state,
+        gpu_inputs, gpu_state, gpu_out, input_guards,
+    )
+    return {"pass": True, "case_id": case["id"], "hip_stream_handle": 0}
+
+
 def run_public(args) -> dict:
     task, contract = validate_task(args.task_dir)
+    if sha256(args.host_gpu_report) != task["host_gpu_report_sha256"]:
+        raise RuntimeError("trusted host GPU report differs from task pin")
     repo = args.task_dir.parents[2]
     git = ["git", "-c", f"safe.directory={repo}", "-C", str(repo)]
     subprocess.run(
@@ -83,29 +122,59 @@ def run_public(args) -> dict:
     from harness.core import read_spec, score_buckets
     from harness.gdr_perf_probe import benchmark_case
     from harness.gdr_score import run_case
+    from harness.run import _active_gpu_pids, _command, _gpu_manifest
 
     if not torch.cuda.is_available():
-        raise RuntimeError("GPU unavailable")
-    arch = torch.cuda.get_device_properties(0).gcnArchName.split(":")[0]
-    if arch != task["target_arch"]:
-        raise RuntimeError(f"GPU arch mismatch: {arch}")
+        raise EnvironmentInvalidError("GPU unavailable")
     sys.path.insert(0, str(args.aiter_source))
     spec = read_spec(args.snapshot / "public/spec.json")
     fixture = json.loads((args.snapshot / "public/large_fixture.json").read_text())["case"]
-    if [case["id"] for case in spec["cases"]] + [fixture["id"]] != contract["visible_correctness_case_ids"]:
+    if [case["id"] for case in spec["cases"]] + [fixture["id"], "default_stream_zero"] != contract["visible_correctness_case_ids"]:
         raise ValueError("public cases differ from contract")
+    try:
+        environment = _gpu_manifest(spec, args.aiter_source, args.host_gpu_report)
+    except RuntimeError as exc:
+        raise EnvironmentInvalidError(str(exc)) from exc
+    # Keep an allocated context alive so the scorer PID must be visible in rocm-smi.
+    context_marker = torch.empty((1,), device="cuda")
+    torch.cuda.synchronize()
+    preflight_raw = _command("rocm-smi", "--showpids")
+    preflight = verify_gpu_pid_probe(
+        preflight_raw, _active_gpu_pids(preflight_raw), os.getpid(), "preflight",
+    )
     plugin = importlib.import_module(spec["plugin"])
     candidate = plugin.load_hip_candidate(library)
     cases = spec["cases"] + [fixture]
     checked = [run_case(plugin, candidate, case) for case in cases]
-    raw["arch"] = arch
+    try:
+        stream_zero = default_stream_zero_case(plugin, candidate, spec["cases"][0])
+    except Exception as exc:
+        stream_zero = {"pass": False, "case_id": spec["cases"][0]["id"],
+                       "hip_stream_handle": 0, "error": repr(exc)}
+    raw["arch"] = task["target_arch"]
+    raw["gpu_name"] = environment["gpu_name"]
+    raw["rocm_product"] = environment["rocm_product"]
+    raw["host_gpu_report_sha256"] = environment["host_gpu_report_sha256"]
+    raw["contention_preflight"] = preflight
     raw["candidate_binary_sha256"] = sha256(library)
     raw["correctness_details"] = checked
-    raw["visible_case_results"] = {entry["id"]: bool(entry["pass"]) for entry in checked}
-    if not all(entry["pass"] for entry in checked):
+    raw["default_stream_zero"] = stream_zero
+    raw["visible_case_results"] = {
+        **{entry["id"]: bool(entry["pass"]) for entry in checked},
+        "default_stream_zero": stream_zero["pass"],
+    }
+    if not all(entry["pass"] for entry in checked) or not stream_zero["pass"]:
+        postflight_raw = _command("rocm-smi", "--showpids")
+        raw["contention_postflight"] = verify_gpu_pid_probe(
+            postflight_raw, _active_gpu_pids(postflight_raw), os.getpid(), "postflight"
+        )
         raw.update({"status": "correctness_failed", "benchmark_bucket_results": {}})
         return raw
     if args.kind == "correctness":
+        postflight_raw = _command("rocm-smi", "--showpids")
+        raw["contention_postflight"] = verify_gpu_pid_probe(
+            postflight_raw, _active_gpu_pids(postflight_raw), os.getpid(), "postflight"
+        )
         raw.update({
             "status": "complete", "benchmark_bucket_results": {},
             "scored_eligible": False,
@@ -123,6 +192,11 @@ def run_public(args) -> dict:
         contract["benchmark_protocol"]["max_relative_mad_each_side"],
     )
     ratios = [scored["buckets"][name]["ratio"] for name in contract["benchmark_case_ids"]]
+    postflight_raw = _command("rocm-smi", "--showpids")
+    raw["contention_postflight"] = verify_gpu_pid_probe(
+        postflight_raw, _active_gpu_pids(postflight_raw), os.getpid(), "postflight"
+    )
+    del context_marker
     raw.update({
         "status": "complete",
         "raw_performance": scored,
@@ -143,9 +217,10 @@ def main() -> int:
     parser.add_argument("--aiter-source", required=True, type=Path)
     parser.add_argument("--task-dir", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--host-gpu-report", required=True, type=Path)
     parser.add_argument("--kind", choices=("correctness", "benchmark"), required=True)
     args = parser.parse_args()
-    for name in ("snapshot", "aiter_source", "task_dir", "output"):
+    for name in ("snapshot", "aiter_source", "task_dir", "output", "host_gpu_report"):
         setattr(args, name, getattr(args, name).resolve())
     repo = Path(__file__).resolve().parents[2]
     if args.output.is_relative_to(repo) or args.output.is_relative_to(args.snapshot):
@@ -154,6 +229,13 @@ def main() -> int:
         parser.error("raw public output must be an existing empty host-mounted directory")
     try:
         raw = run_public(args)
+    except EnvironmentInvalidError as exc:
+        raw = {
+            "schema": "aiter-rs-gdr-opt-public-raw-v1",
+            "status": "environment_invalid",
+            "error": repr(exc),
+            "visible_case_results": {}, "benchmark_bucket_results": {},
+        }
     except Exception as exc:
         raw = {
             "schema": "aiter-rs-gdr-opt-public-raw-v1",

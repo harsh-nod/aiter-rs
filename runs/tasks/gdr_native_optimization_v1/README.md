@@ -18,10 +18,12 @@ incidence sample.
 - Separate visible batch-16 fixture: SHA256
   `10c53ca20475142a87cc515e917194ad07047bc54ef0dd8ca6e665038b023c0b`.
 - Public feedback contract: SHA256
-  `73f97de9dfe39535ebebfb4f36824629c7b2e2cfb29a2d13dcbec9e193ccb5d8`.
+  `100e30a61805e06d89efd998cd48a447f78b5240f82f853f00b6aa7d2857aa5e`.
 - ROCm image ID: `sha256:90885f811fc53d8d03fb6ab6d05b5f0a2c88e277f26f56d19e6b990663a5626b`;
   `/opt/rocm/bin/hipcc` SHA256
   `9a0fa4bc274155e7add34dc1897bfc08f2f5d6732ad8b9102b7d7a86c0e3d781`.
+- Trusted MI350X host GPU report: SHA256
+  `0707955d447ea0511e38fb0ab57c024e74fdc405452790db87d8e97989205ceb`.
 
 The starter has only one editable source file, `kernel.hip`; it also contains
 the pinned ABI and visible JSON cases. The existing `runs.runner` task freeze
@@ -32,8 +34,9 @@ and never passed to a shell or compiler invocation.
 
 ## Public feedback interface
 
-[`public_feedback.json`](public_feedback.json) freezes the five visible
-correctness cases, three public graph-timing buckets, 32 captured stateful
+[`public_feedback.json`](public_feedback.json) freezes five visible tensor
+cases plus an explicit HIP stream-handle-0 ABI check, three public graph-timing
+buckets, 32 captured stateful
 calls, five direct and five graph warmups, 20 alternating pairs, 1.05
 per-bucket non-inferiority screen, and 5% relative-MAD limit. Its 0.95
 geometric-mean improvement target is explicitly **proposed**, not scored.
@@ -50,12 +53,20 @@ An implementable broker protocol is in
    Docker command with a fresh empty 0700 output directory.
    [`public_score.py`](../../gdr_native_optimization/public_score.py)
    compiles with fixed argv, runs the independent CPU oracle and pinned AITER
-   comparison, then measures only the visible graph buckets. No withheld
-   manifest is mounted for this public call.
+   comparison, checks the default HIP stream handle 0, then measures only the
+   visible graph buckets. A single pinned host GPU attestation report is
+   mounted read-only, **not** the withheld manifest. The scorer requires one
+   MI350X/gfx950/PCI 0x75a0 and a visible self PID with no foreign active
+   GPU processes before and after work; otherwise feedback is
+   `environment_invalid`, never a parity pass.
 4. Raw results stay outside the repository and agent workspace. The broker
    returns only allowlisted public case booleans and bucket ratios/pass flags,
    with request/source/snapshot/response/raw-result hashes in its private
    event log. Every source snapshot used for feedback remains preserved.
+
+`--pid=host` is used only so ROCm PID attribution can be checked. This exposes
+host process identifiers to native code in the public-only container, so this
+path is not a general-purpose malicious-code sandbox.
 
 Only a CPU fake-scorer test of this broker exists now. The live watcher and
 agent-visible helper have **not** been connected or exercised, so the task

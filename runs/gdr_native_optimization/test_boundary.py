@@ -19,6 +19,10 @@ from runs.gdr_native_optimization.boundary import (
     sha256,
     validate_task,
 )
+from runs.gdr_native_optimization.public_score import (
+    EnvironmentInvalidError,
+    verify_gpu_pid_probe,
+)
 
 
 class BoundaryTests(unittest.TestCase):
@@ -44,6 +48,7 @@ class BoundaryTests(unittest.TestCase):
         self.assertEqual(self.task["task_mode"], "no_feedback")
         self.assertFalse(self.task["scored_eligible"])
         self.assertEqual(self.task["build_sources"], ["kernel.hip"])
+        self.assertIn("default_stream_zero", self.contract["visible_correctness_case_ids"])
 
     def test_fixed_compiler_argv_never_executes_workspace_script(self):
         marker = self.root / "script-ran"
@@ -72,26 +77,31 @@ class BoundaryTests(unittest.TestCase):
         aiter = self.root / "aiter"
         output = self.root / "public-output"
         output.mkdir(mode=0o700)
+        report = self.root / "trusted-gpu-report.json"
+        report.write_text('{"gpu_name":"AMD Instinct MI350X","card_model":"0x75a0","arch":"gfx950"}\n')
+        task = {**self.task, "host_gpu_report_sha256": sha256(report)}
         with patch("runs.gdr_native_optimization.boundary.subprocess.run") as inspect:
-            inspect.return_value = CompletedProcess([], 0, self.task["compiler_image_id"] + "\n", "")
+            inspect.return_value = CompletedProcess([], 0, task["compiler_image_id"] + "\n", "")
             command = public_container_command(
-                snapshot, repo, aiter, output, self.task, "pinned-image",
+                snapshot, repo, aiter, output, report, task, "pinned-image",
             )
             inspect.assert_called_once()
         mounts = [command[index + 1] for index, value in enumerate(command) if value == "--mount"]
-        self.assertEqual(len(mounts), 4)
+        self.assertEqual(len(mounts), 5)
         self.assertIn("--network=none", command)
-        self.assertNotIn("--pid=host", command)
+        self.assertIn("--pid=host", command)
         self.assertTrue(all("withheld" not in mount for mount in mounts))
         self.assertFalse(any("/workspace/private" in mount for mount in mounts))
+        self.assertTrue(any(f"src={report},dst=/workspace/attestation/gpu.json,readonly" in mount for mount in mounts))
         self.assertEqual(
             {mount.split(",dst=")[1].split(",")[0] for mount in mounts},
-            {"/workspace/snapshot", "/workspace/aiter-rs", "/workspace/aiter", "/workspace/output"},
+            {"/workspace/snapshot", "/workspace/aiter-rs", "/workspace/aiter",
+             "/workspace/attestation/gpu.json", "/workspace/output"},
         )
         with patch("runs.gdr_native_optimization.boundary.subprocess.run") as inspect:
             inspect.return_value = CompletedProcess([], 0, "sha256:wrong\n", "")
             with self.assertRaisesRegex(ValueError, "image ID"):
-                public_container_command(snapshot, repo, aiter, output, self.task,
+                public_container_command(snapshot, repo, aiter, output, report, task,
                                          "pinned-image")
 
     def test_broker_preserves_snapshot_and_only_returns_public_fields(self):
@@ -138,6 +148,25 @@ class BoundaryTests(unittest.TestCase):
             process_request(self.workspace, self.private, 1, lambda *_: {})
         with self.assertRaisesRegex(ValueError, "request limit"):
             process_request(self.workspace, self.private, 4, lambda *_: {})
+
+    def test_pid_gate_requires_self_and_no_foreign_active_process(self):
+        raw = "KFD process information\nPID PROCESS GPU_ID VRAM SDMA\n"
+        self.assertTrue(verify_gpu_pid_probe(raw, [42], 42, "preflight")["self_pid_visible"])
+        with self.assertRaisesRegex(EnvironmentInvalidError, "not visible"):
+            verify_gpu_pid_probe(raw, [], 42, "preflight")
+        with self.assertRaisesRegex(EnvironmentInvalidError, "foreign active"):
+            verify_gpu_pid_probe(raw, [42, 99], 42, "postflight")
+        with self.assertRaisesRegex(EnvironmentInvalidError, "unavailable"):
+            verify_gpu_pid_probe("rocm-smi failed", [42], 42, "preflight")
+
+    def test_environment_invalid_feedback_never_reports_parity(self):
+        response = sanitize_feedback(
+            {"status": "environment_invalid", "visible_case_results": {},
+             "benchmark_bucket_results": {}, "error": "GPU mismatch"},
+            1, "a" * 64, "b" * 64, "benchmark", self.contract,
+        )
+        self.assertEqual(response["status"], "environment_invalid")
+        self.assertEqual(response["benchmark_bucket_results"], {})
 
 
 if __name__ == "__main__":
