@@ -31,6 +31,8 @@ fi
 candidate_sha=$(sha256sum "$candidate" | cut -d' ' -f1)
 install -d -m 700 "$run_root"
 install -m 600 "$report" "$run_root/host_gpu_report.txt"
+PYTHONPATH="$code_root" python3 -m tasks.opus_a16w16_persistent.scored_candidate.host_identity \
+  --private-root "$run_root"
 record_no_result() {
   python3 - "$run_root" "$1" "$candidate_sha" "$2" <<'PY'
 import hashlib
@@ -79,12 +81,14 @@ set +e
 timeout --foreground --signal=TERM --kill-after=30s 1200s \
   docker run --rm --name "$container" --entrypoint python3 --network=none --pid=host \
     --user "$(id -u):$(id -g)" --device=/dev/kfd --device=/dev/dri \
-    --group-add video --group-add render -e HOME=/tmp \
+    --group-add video --group-add render -e HOME=/tmp -e XDG_CACHE_HOME=/tmp/.cache \
+    -e USER=aiter-replay -e LOGNAME=aiter-replay \
     -e PYTHONPATH=/workspace/code \
     -e GIT_CONFIG_COUNT=2 \
     -e GIT_CONFIG_KEY_0=safe.directory -e GIT_CONFIG_VALUE_0=/workspace/aiter \
     -e GIT_CONFIG_KEY_1=safe.directory -e GIT_CONFIG_VALUE_1=/workspace/private/overlay \
-    -v /etc/passwd:/etc/passwd:ro -v /etc/group:/etc/group:ro \
+    --mount "type=bind,src=$run_root/container-passwd,dst=/etc/passwd,readonly" \
+    --mount "type=bind,src=$run_root/container-group,dst=/etc/group,readonly" \
     -v "$study_root/aiter:/workspace/aiter:ro" \
     -v "$code_root:/workspace/code:ro" \
     -v "$run_root:/workspace/private:rw" \

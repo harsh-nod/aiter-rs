@@ -18,6 +18,7 @@ from tasks.opus_a16w16_persistent.scored_candidate.dual_worker import (
 )
 from tasks.opus_a16w16_persistent.scored_candidate.aggregate import aggregate_public, aggregate_withheld
 from tasks.opus_a16w16_persistent.scored_candidate.freeze import private_matrix, sha256
+from tasks.opus_a16w16_persistent.scored_candidate.host_identity import write_nss
 
 
 class _Fake:
@@ -91,6 +92,27 @@ class DualWorkerTests(unittest.TestCase):
                 b.close()
             self.assertEqual((private / "a.log").stat().st_mode & 0o777, 0o600)
             self.assertEqual((private / "b.log").stat().st_mode & 0o777, 0o600)
+
+    def test_minimal_nonroot_nss_and_host_mount_contract(self):
+        with tempfile.TemporaryDirectory() as root:
+            private = Path(root)
+            private.chmod(0o700)
+            passwd, group = write_nss(private, os.getuid(), os.getgid())
+            self.assertIn(f"aiter-replay:x:{os.getuid()}:{os.getgid()}:", passwd.read_text())
+            self.assertIn(f"aiter-replay:x:{os.getgid()}:", group.read_text())
+            self.assertEqual(passwd.stat().st_mode & 0o777, 0o400)
+            self.assertEqual(group.stat().st_mode & 0o777, 0o400)
+            self.assertEqual(write_nss(private, os.getuid(), os.getgid()), (passwd, group))
+            passwd.chmod(0o600)
+            passwd.write_text("wrong")
+            with self.assertRaises(ValueError):
+                write_nss(private, os.getuid(), os.getgid())
+        script = (HERE / "run_pair_host.sh").read_text()
+        self.assertIn("container-passwd,dst=/etc/passwd,readonly", script)
+        self.assertIn("container-group,dst=/etc/group,readonly", script)
+        self.assertIn("HOME=/tmp", script)
+        self.assertIn("XDG_CACHE_HOME=/tmp/.cache", script)
+        self.assertNotIn("-v /etc/passwd:/etc/passwd", script)
 
     def _result(self, case: dict, *, withheld: bool = False) -> dict:
         entry = {"correctness_pass": True, "exact_dispatch": True,

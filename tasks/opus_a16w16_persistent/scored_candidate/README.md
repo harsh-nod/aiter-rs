@@ -94,6 +94,9 @@ or runtime exception is inconclusive, never an agent correctness miss.
 The trusted host wrapper [`run_pair_host.sh`](run_pair_host.sh) prepares the
 single-header overlay, uses the pinned image with network disabled and a
 20-minute outer per-case watchdog, and cleans up only its named container.
+It runs as the host UID with a private minimal read-only passwd/group mapping
+from [`host_identity.py`](host_identity.py), because this host's LDAP UID is
+not present in `/etc/passwd` inside the container.
 It preserves an `attempt.json` and log hash when no production result is
 written. Run it only in an exclusive MI350X window, with `AITERRS_STUDY_ROOT`
 set, a trusted candidate-header snapshot, a public case ID, and a **new**
@@ -104,6 +107,9 @@ target, and optionally requires every committed withheld correctness case.
 One case cannot imply task parity. Even after an all-case aggregate passes,
 this task remains `scored_eligible=false` pending independent review,
 repeat sessions, and any required hidden-data isolation.
+The current pre/post GPU PID checks and MAD screen do not exclude a short-lived
+foreign workload between samples; scored admission should add an external
+contention monitor or explicitly retain that residual uncertainty.
 
 CPU preflight: `python3 -m unittest
 tasks.opus_a16w16_persistent.scored_candidate.test_freeze -v`. Run
