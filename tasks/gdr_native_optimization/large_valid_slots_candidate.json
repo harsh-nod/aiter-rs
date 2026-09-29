@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "task_id": "gfx950.gdr_decode_packed_bf16.stateful.v1",
+  "case": {
+    "id": "large_valid_slots_candidate",
+    "visibility": "visible",
+    "batch": 16,
+    "pool": 20,
+    "steps": 1,
+    "seed": 260905,
+    "indices": [19, 2, 11, 5, 17, 0, 8, 14, 3, 16, 6, 12, 1, 18, 9, 4],
+    "state_slot_padding": true
+  }
+}
