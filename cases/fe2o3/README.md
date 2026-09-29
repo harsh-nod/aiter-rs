@@ -3,7 +3,8 @@
 This case translates the causal control from quant trial r002 into fe2o3's
 semantic Kernel IR. The condition is computed from `LaneId & 1`, so only even
 lanes execute the branch-local shuffle while requesting their odd neighbor's
-value. The IR node still declares `active_lanes = 64` and uniform subgroup
+value (`lane ^ 1` keeps the source index valid for every lane). The IR node
+still declares `active_lanes = 64` and uniform subgroup
 convergence. The separate repaired module executes the shuffle before the
 lane-varying branch; only publication would be predicated in the original HIP
 algorithm.

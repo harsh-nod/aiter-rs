@@ -31,6 +31,14 @@ about one wave per SIMD, cross-workgroup synchronization, or GPU forward
 progress. Such properties require different tasks and hardware/semantics
 assumptions.
 
+A later [one-wave HIP control](../results/2026-09-29-hip-wave-shuffle-control.md)
+on the same gfx950 class produced 32/32 wrong values with the divergent call
+and 0/32 with the uniform-call repair. The corresponding
+[fe2o3 IR experiment](../results/2026-09-29-fe2o3-wave-ir-gap.md) shows that
+the core verifier rejects an explicit partial-lane claim but accepts a false
+full-wave claim in a lane-varying branch. Neither control is another agent
+trial or an end-to-end fe2o3 source proof.
+
 **Counting limit:** two failing final submissions among three fresh runs of
 one task is an early mechanism signal, not a frequency estimate for AITER,
 gfx950 kernels, megakernels, or agent-written HIP generally. Performance and

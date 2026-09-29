@@ -40,7 +40,7 @@ fn wave_shuffle_module(shuffle_in_even_branch: bool, active_lanes: u32) -> Modul
             5,
             u32_type.clone(),
             OperationKind::Binary {
-                op: BinaryOp::Add,
+                op: BinaryOp::BitXor,
                 lhs: ValueId(0),
                 rhs: ValueId(1),
             },
