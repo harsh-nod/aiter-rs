@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "task_id": "sparse-prefill-gfx950-bf16-hle32",
+  "aiter_sha": "868ccf62a0bcad3aa47f92728340ccb37ed4fb39",
+  "arch": "gfx950",
+  "status": "aiter_correctness_admitted_only",
+  "source_path": "pa_sparse_prefill_opus -> pa_sparse_prefill_gfx950_opus_fwd -> opus_mla_v4_prefill_a16w16_16mx1_16nx4_kernel",
+  "cpu_oracle_tests": {
+    "passed": 12,
+    "failed": 0
+  },
+  "public_probe": {
+    "case_count": 5,
+    "passed_count": 5,
+    "invocations_per_case": 2,
+    "gfx950_binding_calls_per_invocation": 1,
+    "gfx1250_binding_calls_per_invocation": 0,
+    "elements_outside_tolerance": 0,
+    "finite_outputs": true,
+    "inputs_unchanged": true,
+    "output_canaries_intact": true,
+    "result_sha256": "67fcb3ad0ead449ea4cce98255e80f479b9807c5f0bb198712a6800fbaa2963a"
+  },
+  "withheld_probe": {
+    "case_count": 4,
+    "passed_count": 4,
+    "invocations_per_case": 2,
+    "matrix_sha256_commitment": "70feede754e3f5c18d0f1cbbf3f6434b6602cd97cab4e3d6b6bc11073bfcdebd",
+    "generator_sha256": "7ad34171d57f721bdc4f2e98dc07b9b56484578910ade668e0da045504975999",
+    "result_sha256": "1967937e71b22a51d5d6398d24516e9e8e0fdf5a380eeed0913c07da54c2fc7f",
+    "private_locator": "mi350-2:aiter-rs-study/private/sparse_prefill_gfx950",
+    "manifest_mode": "0600",
+    "directory_mode": "0700",
+    "case_ids_or_seeds_published": false
+  },
+  "performance": "not_run",
+  "candidate_hip_parity": "not_run",
+  "agent_trials": 0,
+  "scored_eligible": false
+}
