@@ -1,0 +1,22 @@
+{
+  "schema": "aiter-rs-opus-persistent-fullk-matrix-v1",
+  "aiter_sha": "868ccf62a0bcad3aa47f92728340ccb37ed4fb39",
+  "arch": "gfx950",
+  "gpu_sku": "AMD Instinct MI350X",
+  "layout": "contiguous_[1,M,K]x[1,N,K]to[1,M,N]",
+  "input_dtype": "bfloat16",
+  "output_dtype": "bfloat16",
+  "split_k": 0,
+  "atol": 0.125,
+  "rtol": 0.02,
+  "cases": [
+    {"id": "aligned-nooob", "batch": 1, "m": 8192, "n": 4096, "k": 256, "kid": 1300, "seed": 95001, "pattern": "random", "source": "admitted_anchor"},
+    {"id": "m-tail-oob", "batch": 1, "m": 12287, "n": 4096, "k": 256, "kid": 300, "seed": 95002, "pattern": "random", "source": "admitted_anchor"},
+    {"id": "n-tail-16-aligned", "batch": 1, "m": 16384, "n": 2192, "k": 512, "kid": 300, "seed": 95003, "pattern": "random", "source": "admitted_anchor"},
+    {"id": "m-one-row-tail", "batch": 1, "m": 12033, "n": 4096, "k": 256, "kid": 300, "seed": 95011, "pattern": "checkerboard", "source": "proposed"},
+    {"id": "n-first-vector-tail", "batch": 1, "m": 16384, "n": 2064, "k": 256, "kid": 300, "seed": 95012, "pattern": "cancellation", "source": "proposed"},
+    {"id": "mn-combined-tail", "batch": 1, "m": 16383, "n": 2064, "k": 256, "kid": 300, "seed": 95013, "pattern": "random", "source": "proposed"},
+    {"id": "k-min-even-loop", "batch": 1, "m": 8192, "n": 4096, "k": 128, "kid": 1300, "seed": 95015, "pattern": "checkerboard", "source": "proposed"},
+    {"id": "xcd-padded-grid", "batch": 1, "m": 4096, "n": 16384, "k": 128, "kid": 1300, "seed": 95016, "pattern": "checkerboard", "source": "proposed"}
+  ]
+}
