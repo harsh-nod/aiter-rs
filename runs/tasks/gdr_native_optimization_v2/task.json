@@ -7,7 +7,7 @@
   "operator_entry": "aiter.ops.gdr_decode_packed_bf16",
   "prompt_file": "prompt.md",
   "starter_dir": "starter",
-  "harness_revision": "ec4f72241e764e1a2c72bc493c75eb4318aeace8",
+  "harness_revision": "7d64b27f540da56834c075c27a3e0d19f5d3fa1f",
   "harness_spec_sha256": "fb5fdbfd031fa3d9fbf64a716b067b260d63ef29911e468e98a8279301a53145",
   "large_fixture_sha256": "10c53ca20475142a87cc515e917194ad07047bc54ef0dd8ca6e665038b023c0b",
   "feedback_contract_sha256": "89e42267cf359dfc6b5a3b8209147f0caaa7b5114b8469c33e4de2cac88a01a9",
