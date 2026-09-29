@@ -1,0 +1,11 @@
+{
+  "agent_exit_code": 0,
+  "elapsed_seconds": 338.966,
+  "final_tree_sha256": "8cab9ab50099f5d6e656c611d0a6d7e2d73bba6e7b47ada57b0272e443b88797",
+  "incidence_eligible": true,
+  "scored": false,
+  "scoring_note": "No correctness or performance result is implied by an agent CLI exit code.",
+  "snapshot_count": 5,
+  "snapshot_errors": [],
+  "status": "completed"
+}

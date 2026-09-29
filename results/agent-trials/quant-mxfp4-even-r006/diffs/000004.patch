@@ -1,0 +1,11 @@
+--- a/starter.hip
++++ b/starter.hip
+@@ -32,7 +32,7 @@
+     const uint32_t exp = (x >> 10) & 0x1fu;
+     const uint32_t mant = x & 0x03ffu;
+     if (exp == 0) {
+-        return 0.0f;
++        return static_cast<float>(mant) * 5.9604644775390625e-8f;
+     }
+     return bits_to_float(((exp + (127u - 15u)) << 23) | (mant << 13));
+ }

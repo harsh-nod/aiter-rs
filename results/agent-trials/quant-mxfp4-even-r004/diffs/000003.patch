@@ -1,0 +1,78 @@
+--- a/starter.hip
++++ b/starter.hip
+@@ -87,18 +87,24 @@
+     return code;
+ }
+ 
+-__device__ __forceinline__ uint8_t quant_one(uint16_t raw, float multiplier, int dtype) {
++template <int DType>
++__device__ __forceinline__ float typed_abs_to_float(uint16_t raw) {
++    return DType == 0 ? half_abs_to_float(raw) : bf16_abs_to_float(raw);
++}
++
++template <int DType>
++__device__ __forceinline__ uint8_t quant_one(uint16_t raw, float multiplier) {
+     const uint8_t sign = static_cast<uint8_t>((raw >> 12) & 0x08u);
+-    const float abs_value = dtype == 0 ? half_abs_to_float(raw) : bf16_abs_to_float(raw);
++    const float abs_value = typed_abs_to_float<DType>(raw);
+     return static_cast<uint8_t>(e2m1_even_code(abs_value * multiplier) | sign);
+ }
+ 
++template <int DType>
+ __global__ __launch_bounds__(kThreadsPerBlock) void quant_mxfp4_even_kernel(
+     const uint32_t* __restrict__ input_pairs,
+     uint8_t* __restrict__ packed_output,
+     uint8_t* __restrict__ scale_output,
+-    int total_groups,
+-    int dtype) {
++    int total_groups) {
+     __shared__ float shared_amax[kThreadsPerBlock];
+ 
+     const int thread = threadIdx.x;
+@@ -113,8 +119,8 @@
+         raw_pair = input_pairs[group * kPackedPerGroup + pair_lane];
+         const uint16_t raw_even = static_cast<uint16_t>(raw_pair & 0xffffu);
+         const uint16_t raw_odd = static_cast<uint16_t>(raw_pair >> 16);
+-        const float abs_even = dtype == 0 ? half_abs_to_float(raw_even) : bf16_abs_to_float(raw_even);
+-        const float abs_odd = dtype == 0 ? half_abs_to_float(raw_odd) : bf16_abs_to_float(raw_odd);
++        const float abs_even = typed_abs_to_float<DType>(raw_even);
++        const float abs_odd = typed_abs_to_float<DType>(raw_odd);
+         pair_amax = fmaxf(abs_even, abs_odd);
+     }
+ 
+@@ -151,8 +157,8 @@
+         const float multiplier = pow2_int(-scale_exponent_from_byte(scale_byte));
+         const uint16_t raw_even = static_cast<uint16_t>(raw_pair & 0xffffu);
+         const uint16_t raw_odd = static_cast<uint16_t>(raw_pair >> 16);
+-        const uint8_t even_code = quant_one(raw_even, multiplier, dtype);
+-        const uint8_t odd_code = quant_one(raw_odd, multiplier, dtype);
++        const uint8_t even_code = quant_one<DType>(raw_even, multiplier);
++        const uint8_t odd_code = quant_one<DType>(raw_odd, multiplier);
+         packed_output[group * kPackedPerGroup + pair_lane] =
+             static_cast<uint8_t>(even_code | (odd_code << 4));
+     }
+@@ -186,11 +192,18 @@
+     const dim3 grid((total_groups + kGroupsPerBlock - 1) / kGroupsPerBlock);
+     hipStream_t hip_stream = reinterpret_cast<hipStream_t>(stream);
+ 
+-    hipLaunchKernelGGL(quant_mxfp4_even_kernel, grid, block, 0, hip_stream,
+-                       reinterpret_cast<const uint32_t*>(input),
+-                       reinterpret_cast<uint8_t*>(packed_output),
+-                       reinterpret_cast<uint8_t*>(scale_output),
+-                       total_groups,
+-                       dtype);
++    if (dtype == 0) {
++        hipLaunchKernelGGL(HIP_KERNEL_NAME(quant_mxfp4_even_kernel<0>), grid, block, 0, hip_stream,
++                           reinterpret_cast<const uint32_t*>(input),
++                           reinterpret_cast<uint8_t*>(packed_output),
++                           reinterpret_cast<uint8_t*>(scale_output),
++                           total_groups);
++    } else {
++        hipLaunchKernelGGL(HIP_KERNEL_NAME(quant_mxfp4_even_kernel<1>), grid, block, 0, hip_stream,
++                           reinterpret_cast<const uint32_t*>(input),
++                           reinterpret_cast<uint8_t*>(packed_output),
++                           reinterpret_cast<uint8_t*>(scale_output),
++                           total_groups);
++    }
+     return static_cast<int>(hipGetLastError());
+ }

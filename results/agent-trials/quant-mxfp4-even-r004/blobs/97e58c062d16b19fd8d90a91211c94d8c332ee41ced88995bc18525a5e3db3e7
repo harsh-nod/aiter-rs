@@ -1,0 +1,209 @@
+#include <hip/hip_runtime.h>
+#include <stdint.h>
+
+namespace {
+
+constexpr int kValuesPerGroup = 32;
+constexpr int kPackedPerGroup = 16;
+constexpr int kThreadsPerGroup = 16;
+constexpr int kThreadsPerBlock = 256;
+constexpr int kGroupsPerBlock = kThreadsPerBlock / kThreadsPerGroup;
+
+__device__ __forceinline__ float u32_as_float(uint32_t bits) {
+    union {
+        uint32_t u;
+        float f;
+    } v;
+    v.u = bits;
+    return v.f;
+}
+
+__device__ __forceinline__ uint32_t float_as_u32(float x) {
+    union {
+        float f;
+        uint32_t u;
+    } v;
+    v.f = x;
+    return v.u;
+}
+
+__device__ __forceinline__ float pow2_int(int exponent) {
+    if (exponent < -126) {
+        return u32_as_float(1u << (exponent + 149));
+    }
+    return u32_as_float(static_cast<uint32_t>(exponent + 127) << 23);
+}
+
+__device__ __forceinline__ float half_abs_to_float(uint16_t h) {
+    h &= 0x7fffu;
+    const uint32_t exp = (h >> 10) & 0x1fu;
+    const uint32_t mant = h & 0x03ffu;
+
+    if (exp == 0) {
+        return mant == 0 ? 0.0f : static_cast<float>(mant) * 0x1.0p-24f;
+    }
+
+    return u32_as_float(((exp + 112u) << 23) | (mant << 13));
+}
+
+__device__ __forceinline__ float bf16_abs_to_float(uint16_t b) {
+    return u32_as_float(static_cast<uint32_t>(b & 0x7fffu) << 16);
+}
+
+__device__ __forceinline__ uint8_t mxfp4_scale_byte(float amax) {
+    const uint32_t r_bits = (float_as_u32(amax) + 0x00200000u) & 0x7f800000u;
+    int exponent = -127;
+    if (r_bits != 0) {
+        exponent = static_cast<int>(r_bits >> 23) - 129;
+        exponent = exponent < -127 ? -127 : exponent;
+        exponent = exponent > 127 ? 127 : exponent;
+    }
+    return static_cast<uint8_t>(exponent + 127);
+}
+
+__device__ __forceinline__ int scale_exponent_from_byte(uint8_t scale_byte) {
+    return static_cast<int>(scale_byte) - 127;
+}
+
+__device__ __forceinline__ uint8_t e2m1_even_code(float abs_scaled) {
+    uint8_t code;
+    if (abs_scaled <= 0.25f) {
+        code = 0;
+    } else if (abs_scaled < 0.75f) {
+        code = 1;
+    } else if (abs_scaled <= 1.25f) {
+        code = 2;
+    } else if (abs_scaled < 1.75f) {
+        code = 3;
+    } else if (abs_scaled <= 2.5f) {
+        code = 4;
+    } else if (abs_scaled < 3.5f) {
+        code = 5;
+    } else if (abs_scaled <= 5.0f) {
+        code = 6;
+    } else {
+        code = 7;
+    }
+    return code;
+}
+
+template <int DType>
+__device__ __forceinline__ float typed_abs_to_float(uint16_t raw) {
+    return DType == 0 ? half_abs_to_float(raw) : bf16_abs_to_float(raw);
+}
+
+template <int DType>
+__device__ __forceinline__ uint8_t quant_one(uint16_t raw, float multiplier) {
+    const uint8_t sign = static_cast<uint8_t>((raw >> 12) & 0x08u);
+    const float abs_value = typed_abs_to_float<DType>(raw);
+    return static_cast<uint8_t>(e2m1_even_code(abs_value * multiplier) | sign);
+}
+
+template <int DType>
+__global__ __launch_bounds__(kThreadsPerBlock) void quant_mxfp4_even_kernel(
+    const uint32_t* __restrict__ input_pairs,
+    uint8_t* __restrict__ packed_output,
+    uint8_t* __restrict__ scale_output,
+    int total_groups) {
+    __shared__ float shared_amax[kThreadsPerBlock];
+
+    const int thread = threadIdx.x;
+    const int group_in_block = thread / kThreadsPerGroup;
+    const int pair_lane = thread - group_in_block * kThreadsPerGroup;
+    const int group = blockIdx.x * kGroupsPerBlock + group_in_block;
+    const bool active = group < total_groups;
+
+    uint32_t raw_pair = 0;
+    float pair_amax = 0.0f;
+    if (active) {
+        raw_pair = input_pairs[group * kPackedPerGroup + pair_lane];
+        const uint16_t raw_even = static_cast<uint16_t>(raw_pair & 0xffffu);
+        const uint16_t raw_odd = static_cast<uint16_t>(raw_pair >> 16);
+        const float abs_even = typed_abs_to_float<DType>(raw_even);
+        const float abs_odd = typed_abs_to_float<DType>(raw_odd);
+        pair_amax = fmaxf(abs_even, abs_odd);
+    }
+
+    shared_amax[thread] = pair_amax;
+    __syncthreads();
+
+    const int base = group_in_block * kThreadsPerGroup;
+    if (pair_lane < 8) {
+        shared_amax[base + pair_lane] = fmaxf(shared_amax[base + pair_lane],
+                                             shared_amax[base + pair_lane + 8]);
+    }
+    __syncthreads();
+    if (pair_lane < 4) {
+        shared_amax[base + pair_lane] = fmaxf(shared_amax[base + pair_lane],
+                                             shared_amax[base + pair_lane + 4]);
+    }
+    __syncthreads();
+    if (pair_lane < 2) {
+        shared_amax[base + pair_lane] = fmaxf(shared_amax[base + pair_lane],
+                                             shared_amax[base + pair_lane + 2]);
+    }
+    __syncthreads();
+    if (pair_lane == 0) {
+        shared_amax[base] = fmaxf(shared_amax[base], shared_amax[base + 1]);
+    }
+    __syncthreads();
+
+    if (active) {
+        const uint8_t scale_byte = mxfp4_scale_byte(shared_amax[base]);
+        if (pair_lane == 0) {
+            scale_output[group] = scale_byte;
+        }
+
+        const float multiplier = pow2_int(-scale_exponent_from_byte(scale_byte));
+        const uint16_t raw_even = static_cast<uint16_t>(raw_pair & 0xffffu);
+        const uint16_t raw_odd = static_cast<uint16_t>(raw_pair >> 16);
+        const uint8_t even_code = quant_one<DType>(raw_even, multiplier);
+        const uint8_t odd_code = quant_one<DType>(raw_odd, multiplier);
+        packed_output[group * kPackedPerGroup + pair_lane] =
+            static_cast<uint8_t>(even_code | (odd_code << 4));
+    }
+}
+
+}  // namespace
+
+// dtype: 0 = FP16, 1 = BF16. Pointers address distinct device buffers.
+// Enqueue on stream and return a hipError_t integer; do not synchronize.
+extern "C" int aiter_rs_quant_mxfp4_even(
+    const void* input,
+    void* packed_output,
+    void* scale_output,
+    int64_t rows,
+    int64_t cols,
+    int dtype,
+    void* stream) {
+    if (input == nullptr || packed_output == nullptr || scale_output == nullptr ||
+        rows <= 0 || cols <= 0 || (cols % kValuesPerGroup) != 0 ||
+        (dtype != 0 && dtype != 1)) {
+        return static_cast<int>(hipErrorInvalidValue);
+    }
+
+    const int64_t total_groups_64 = rows * (cols / kValuesPerGroup);
+    if (total_groups_64 <= 0 || total_groups_64 > static_cast<int64_t>(INT32_MAX)) {
+        return static_cast<int>(hipErrorInvalidValue);
+    }
+
+    const int total_groups = static_cast<int>(total_groups_64);
+    const dim3 block(kThreadsPerBlock);
+    const dim3 grid((total_groups + kGroupsPerBlock - 1) / kGroupsPerBlock);
+    hipStream_t hip_stream = reinterpret_cast<hipStream_t>(stream);
+
+    if (dtype == 0) {
+        hipLaunchKernelGGL(HIP_KERNEL_NAME(quant_mxfp4_even_kernel<0>), grid, block, 0, hip_stream,
+                           reinterpret_cast<const uint32_t*>(input),
+                           reinterpret_cast<uint8_t*>(packed_output),
+                           reinterpret_cast<uint8_t*>(scale_output),
+                           total_groups);
+    } else {
+        hipLaunchKernelGGL(HIP_KERNEL_NAME(quant_mxfp4_even_kernel<1>), grid, block, 0, hip_stream,
+                           reinterpret_cast<const uint32_t*>(input),
+                           reinterpret_cast<uint8_t*>(packed_output),
+                           reinterpret_cast<uint8_t*>(scale_output),
+                           total_groups);
+    }
+    return static_cast<int>(hipGetLastError());
+}

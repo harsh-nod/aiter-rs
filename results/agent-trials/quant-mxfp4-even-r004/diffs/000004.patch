@@ -1,0 +1,61 @@
+--- a/starter.hip
++++ b/starter.hip
+@@ -105,8 +105,6 @@
+     uint8_t* __restrict__ packed_output,
+     uint8_t* __restrict__ scale_output,
+     int total_groups) {
+-    __shared__ float shared_amax[kThreadsPerBlock];
+-
+     const int thread = threadIdx.x;
+     const int group_in_block = thread / kThreadsPerGroup;
+     const int pair_lane = thread - group_in_block * kThreadsPerGroup;
+@@ -124,32 +122,29 @@
+         pair_amax = fmaxf(abs_even, abs_odd);
+     }
+ 
+-    shared_amax[thread] = pair_amax;
+-    __syncthreads();
+-
+-    const int base = group_in_block * kThreadsPerGroup;
++    float amax = pair_amax;
++    float other = __shfl_down(amax, 8, kThreadsPerGroup);
+     if (pair_lane < 8) {
+-        shared_amax[base + pair_lane] = fmaxf(shared_amax[base + pair_lane],
+-                                             shared_amax[base + pair_lane + 8]);
+-    }
+-    __syncthreads();
++        amax = fmaxf(amax, other);
++    }
++    other = __shfl_down(amax, 4, kThreadsPerGroup);
+     if (pair_lane < 4) {
+-        shared_amax[base + pair_lane] = fmaxf(shared_amax[base + pair_lane],
+-                                             shared_amax[base + pair_lane + 4]);
+-    }
+-    __syncthreads();
++        amax = fmaxf(amax, other);
++    }
++    other = __shfl_down(amax, 2, kThreadsPerGroup);
+     if (pair_lane < 2) {
+-        shared_amax[base + pair_lane] = fmaxf(shared_amax[base + pair_lane],
+-                                             shared_amax[base + pair_lane + 2]);
+-    }
+-    __syncthreads();
++        amax = fmaxf(amax, other);
++    }
++    other = __shfl_down(amax, 1, kThreadsPerGroup);
+     if (pair_lane == 0) {
+-        shared_amax[base] = fmaxf(shared_amax[base], shared_amax[base + 1]);
+-    }
+-    __syncthreads();
++        amax = fmaxf(amax, other);
++    }
++
++    int scale_int = pair_lane == 0 ? static_cast<int>(mxfp4_scale_byte(amax)) : 0;
++    scale_int = __shfl(scale_int, 0, kThreadsPerGroup);
+ 
+     if (active) {
+-        const uint8_t scale_byte = mxfp4_scale_byte(shared_amax[base]);
++        const uint8_t scale_byte = static_cast<uint8_t>(scale_int);
+         if (pair_lane == 0) {
+             scale_output[group] = scale_byte;
+         }

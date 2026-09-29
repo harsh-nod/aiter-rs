@@ -1,0 +1,15 @@
+--- a/starter.hip
++++ b/starter.hip
+@@ -92,11 +92,7 @@
+         const uint16_t raw = input[group * 32 + lane_in_group];
+         negative = (raw & 0x8000u) != 0;
+         const uint16_t abs_raw = static_cast<uint16_t>(raw & 0x7fffu);
+-        if constexpr (DType == 0) {
+-            abs_x = fp16_abs_to_float(abs_raw);
+-        } else {
+-            abs_x = bf16_abs_to_float(abs_raw);
+-        }
++        abs_x = DType == 0 ? fp16_abs_to_float(abs_raw) : bf16_abs_to_float(abs_raw);
+     }
+ 
+     float amax = abs_x;

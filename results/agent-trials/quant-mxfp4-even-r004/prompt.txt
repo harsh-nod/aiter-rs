@@ -1,0 +1,37 @@
+Implement the specified HIP kernel in this workspace. Target gfx950. No supplied correctness-test feedback is available during this attempt. Do not attempt to access hidden tests.
+
+# gfx950 MXFP4 Even quantization
+
+Implement `aiter_rs_quant_mxfp4_even` in `starter.hip`. Match the packed
+output and scales of AITER's no-shuffle, group-size-32, Even-rounding
+MXFP4 quantizer on MI350X, and aim for AITER-level kernel performance.
+No supplied correctness or benchmark feedback is available during this
+attempt. The result will be tested independently after submission.
+
+The input is a contiguous, 16-byte-aligned `X[M,K]` matrix of FP16 (`dtype=0`)
+or BF16 (`dtype=1`) on the GPU. `1 <= M <= 4097`, `32 <= K <= 2048`, and `K`
+is divisible by 32. Values are finite normal numbers or signed zero with
+absolute value at most 128. Output pointers address distinct preallocated
+GPU buffers: `packed_output` has `M*K/2` bytes and `scale_output` has
+`M*K/32` bytes. Fully write both outputs, do not modify input or bytes
+outside the output spans, use the supplied HIP stream, and do not synchronize.
+
+For each 32-value group, convert to FP32 and take `amax=max(abs(x_i))`.
+Compute the scale with this Even-mode rule:
+
+```text
+r_bits = (bits_f32(amax) + 0x00200000) & 0x7F800000
+exponent = -127 if r_bits == 0 else clamp(exponent_bits(r_bits)-129, -127, 127)
+scale = 2^exponent
+scale_byte = exponent+127
+```
+
+Divide each value by `scale`, round to nearest E2M1 level with ties to the
+even code, and saturate at magnitude 6. The positive levels by code are
+`0, 0.5, 1, 1.5, 2, 3, 4, 6`; bit 3 is the sign, including negative zero.
+Pack even-indexed values in low nibbles and odd-indexed values in high
+nibbles. Scale bytes are row-major.
+
+The implementation must be in HIP. Do not call AITER, PyTorch, external
+quantization libraries, or precomputed outputs. You may compile locally to
+check syntax. Do not inspect AITER source or the evaluator's hidden tests.
