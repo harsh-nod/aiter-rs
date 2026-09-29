@@ -1,0 +1,33 @@
+{
+  "schema": "aiter-rs-agent-configuration-freeze-v1",
+  "configuration_id": "quant-mxfp4-even-gpt55-high-v1",
+  "task_id": "gfx950.quant_mxfp4.even.noshuffle.v1",
+  "task_revision": "no-feedback-v1",
+  "task_freeze_sha256": "b28a7b6ad42f4c0d259094553636215acb2c9b481976fec83c1524c68599cf67",
+  "prompt_sha256": "12b0d332c395c8e96e4613fceb7f281f59603001539e4ee9a777f83ca53dca82",
+  "starter_tree_sha256": "6aa42fd58c1c3a8a578a35ec267a71f01179c63a71e4f99bd2cb5e95ca25cbe5",
+  "aiter_sha": "868ccf62a0bcad3aa47f92728340ccb37ed4fb39",
+  "harness_revision": "5abc535a9f54cb9c85e780abe9e3a9b3c2398f0b",
+  "harness_spec_sha256": "127e3bc54b2fbd312b5b34d3d95526bbc7603e148a854aa3ed5de9ec986a6d61",
+  "withheld_cases_sha256": "9002244b278c995dff666027e80d97effce1888c9ab625d20b6d2917c11dd1ef",
+  "gpu_sku": "AMD Instinct MI350X",
+  "target_arch": "gfx950",
+  "task_mode": "no_feedback",
+  "agent": {
+    "cli": "codex",
+    "cli_version": "codex-cli 0.159.0",
+    "cli_sha256": "d2752c52353401f7f6efbfcea68796f4f7a3d3e4769f5d1da53fa49d4856b72f",
+    "model": "gpt-5.5",
+    "reasoning_effort": "high",
+    "sampling_seed_supported": false
+  },
+  "isolation_policy": "minimal-codex-hip-v1",
+  "wall_seconds": 900,
+  "replicate_ids": ["r004", "r005", "r006"],
+  "benchmark": {
+    "case_ids": ["f16_medium", "bf16_large"],
+    "max_latency_ratio_each": 1.05
+  },
+  "capture_scored_eligible": true,
+  "scoring_requires_trusted_remote_replay": true
+}
