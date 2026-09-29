@@ -1,5 +1,10 @@
 # Wave-shuffle participation gap
 
+The [paired Rust source control](source_wave_participation/README.md) tests a
+divergent safe Wave64 collective and its uniform repair against the pinned
+fe2o3 frontend. Both typecheck, while current source-to-KIR qualification is
+unsupported; this IR-only case remains a separate boundary observation.
+
 This case translates the causal control from quant trial r002 into fe2o3's
 semantic Kernel IR. The condition is computed from `LaneId & 1`, so only even
 lanes execute the branch-local shuffle while requesting their odd neighbor's
