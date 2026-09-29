@@ -39,7 +39,9 @@ one step, unique valid indices, and padded state slots. It is a *proposed
 performance fixture*, not part of the eight-case committed correctness
 matrix. The [two-run admission](LARGE_FIXTURE_ADMISSION.md) passed the CPU
 oracle, input/state/output guards, and graph checks with unchanged fixture
-hash; an exact dispatch/profiler receipt is still missing. If later evidence
+hash. The later [profiler and session receipt](PROFILER_STABILITY_RECEIPT.md)
+confirmed the same exact GDR kernel symbol, one HIP launch, and the expected
+geometry on both paths in all three public buckets. If later evidence
 shows the fixture changes the supported domain, exclude it with a recorded
 reason rather than silently adjusting it. The new public fixture is checked
 for correctness at every timed replay, bringing the
@@ -54,18 +56,23 @@ state against the independent CPU oracle and all guards after replay. Require
 one exact MI350X, host PID attribution, no active foreign GPU process,
 both-side relative MAD/median `<=0.05`, and two independent unchanged runs.
 Never substitute Python-call GPU-event intervals for graph replay; retain raw
-samples and all source/binary/harness/spec/container hashes. A profiler check
-is still needed to attribute per-kernel optimization.
+samples and all source/binary/harness/spec/container hashes. The one-call
+profiler receipt establishes dispatch identity and launch geometry, not an
+optimized kernel's speedup or an instruction-level equivalence proof.
 
 The non-inferiority gate is candidate median/AITER median `<=1.05` in **every**
-admitted bucket and both runs. A distinct optimization objective is geometric
-mean(candidate/AITER) `<=0.95` across the admitted buckets in both runs, with
-no bucket exceeding `1.05`. This 5% objective is proposed, not yet frozen;
-freeze it only after session-level stability and a profiler control show it
-is measurable. The batch-16 admission's two runs had at most 1.51 percentage
-points of bucket-ratio shift and 0.83% relative MAD, below the proposed 5%
-effect, but do not alone certify a scoring cutoff. The native-derived seed met
-non-inferiority but did not meet that improvement objective.
+admitted bucket and both runs. Passing correctness and this performance gate
+counts as parity; it does not by itself count as an optimization. Report a
+distinct optimization objective of geometric mean(candidate/AITER) `<=0.95`
+across the admitted buckets in both runs, with no bucket exceeding `1.05`.
+This 5% objective is proposed, not yet frozen as an attainable cutoff. Four
+unchanged runs, including two later independent container sessions, had at
+most 1.81 percentage points of bucket-ratio spread and 1.50% within-run
+relative MAD; this bounded sample does not show a 5% effect below measurement
+resolution, but does not establish cross-day stability or that an optimized
+candidate can achieve it. The native-derived seed met non-inferiority but
+did not improve on AITER by 5%. An unchanged seed or no-op is a parity result,
+not an optimized-kernel result.
 
 ## Trusted boundary
 
@@ -83,6 +90,7 @@ manifest through mounts or retained sessions.
 
 The public analyst source is intentionally visible **for this optimization
 task only**. Keep it out of any blind from-spec GDR study; exposure to it is
-contamination for that separate question. Until the new fixture, objective,
-sandbox boundary, and graph/profiler controls are admitted and frozen, mark
+contamination for that separate question. Despite the public fixture,
+profiler, and graph controls now passing, the scoring objective and trusted
+agent/private-data sandbox still require admission and freeze. Keep
 `scored_eligible=false` and run no agent captures.
