@@ -70,8 +70,9 @@ path is not a general-purpose malicious-code sandbox.
 
 Only a CPU fake-scorer test of this broker exists now. The live watcher and
 agent-visible helper have **not** been connected or exercised, so the task
-must remain `no_feedback`. The public scorer itself has not had a GPU smoke
-run in this task revision. Before changing the task mode, test the full
+must remain `no_feedback`. The public scorer passed one bounded native-seed
+[GPU smoke](PUBLIC_SEED_SMOKE.md), which does not validate the live feedback
+broker or an optimized agent candidate. Before changing the task mode, test the full
 request/response path and validate that the trusted checkout mounted in the
 public container contains no private research artifacts.
 
