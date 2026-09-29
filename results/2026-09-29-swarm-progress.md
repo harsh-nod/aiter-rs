@@ -24,15 +24,24 @@ contain commitments and sanitized aggregates.
   [graph control](../references/quant_mxfp4_graph_control.md) found correct
   r001 slower than AITER in both public buckets (1.35x and 1.96x). None of
   the six runs has established device-performance parity.
+- Three additional [GDR native-seed optimization previews](agent-trials/gdr-native-optimization-previews.md)
+  were captured with one fixed CLI/model/effort and no GPU feedback. Trusted
+  [exploratory replay](agent-trials/gdr-native-optimization-replay-20260929.md)
+  found all three functionally correct on 6/6 visible plus 4/4 withheld cases,
+  but all missed at least one public graph bucket's <=1.05 latency gate.
+  Preview01/02 slowed all three buckets; preview03 slowed only batch 16
+  (1.0623x, then 1.0725x in a fresh repeat). These are agent-authored
+  performance regressions on one optimization task, but **unscored previews**
+  outside the incidence denominator, with no isolated source-level cost cause.
 
 ## Analyst and AITER controls
 
 | Track | Current evidence | Admission status |
 | --- | --- | --- |
-| GDR decode | Naive HIP passed public correctness but was 5.76-5.85x slower under repeatable graph replay. A source-preserving AITER-derived HIP ABI seed passed 8/8 public+withheld correctness. [Profiler and stability controls](../tasks/gdr_native_optimization/PROFILER_STABILITY_RECEIPT.md) confirmed one same-symbol, same-geometry dispatch per side in three public buckets and two fresh graph sessions within 5% of AITER. The [public-only scorer smoke](../runs/tasks/gdr_native_optimization_v1/PUBLIC_SEED_SMOKE.md) passed six visible checks and three parity buckets; its geometric-mean ratio 1.0112 missed the proposed 0.95 improvement objective. | Credible HIP parity seed for an unscored, no-feedback optimization prototype. No live agent feedback broker, GDR-specific trusted post-agent hidden replay, or scored agent attempt yet. The seed is an answer key for optimization, not blind from-spec trials. |
+| GDR decode | Naive HIP passed public correctness but was 5.76-5.85x slower under repeatable graph replay. A source-preserving AITER-derived HIP ABI seed passed 8/8 public+withheld correctness. [Profiler and stability controls](../tasks/gdr_native_optimization/PROFILER_STABILITY_RECEIPT.md) confirmed one same-symbol, same-geometry dispatch per side in three public buckets and two fresh graph sessions within 5% of AITER. The [public-only scorer smoke](../runs/tasks/gdr_native_optimization_v1/PUBLIC_SEED_SMOKE.md) passed six visible checks and three parity buckets. The later host-owned replay seed passed all public cases and buckets in its separate environment. | Credible HIP parity seed and three exploratory no-feedback agent replays. A GDR-specific post-agent hidden replay exists, but no live agent feedback broker, frozen scored environment, or scored agent attempt. The seed is an answer key for optimization, not blind from-spec trials. |
 | MHC fused post/pre | Guarded analyst HIP passed 9/9 cases, but graph replay was 20-106x slower than AITER. | No credible HIP parity seed; unscored. |
 | Sparse prefill | Analyst HIP passed 5 public and 4 withheld correctness cases. Read-only post-graph verification passed, but two public graph buckets were 9.97x and 11.86x slower. | No credible HIP parity seed; unscored. |
-| OPUS persistent A16W16 GEMM | Three supported exact-kid gfx950 cases passed an independent Torch oracle twice; profiler confirmed persistent kernel symbols for kids 300 and 1300. A [source-equivalent standalone HIP adapter](../tasks/opus_a16w16_persistent/FEASIBILITY.md) passed the same three cases twice, was bitwise identical to AITER, and measured 0.9934/1.0001/0.9787 adapter/AITER in 32-call graph replay. A stream-zero adapter bug was caught before launch and fixed; it is not a scored agent mistake. An `N=2177` pretrial was excluded by the pinned `N % 16 == 0` tuner domain. | Plausible source-preserving parity route, but no hidden adversarial matrix, frozen agent optimization task, or agent trajectory. The adapter is an analyst control, not an independent rewrite. |
+| OPUS persistent A16W16 GEMM | Three original exact-kid cases passed the independent Torch oracle and the [source-equivalent standalone HIP adapter](../tasks/opus_a16w16_persistent/FEASIBILITY.md). Eight full-K public cases then passed guarded multi-step correctness and one-session [graph control](../tasks/opus_a16w16_persistent/ADVERSARIAL_GRAPH_FEASIBILITY.md) at 0.9953-1.0244 adapter/AITER. A random-input partial-K pretrial exposed an AITER-only [padding-dependent correctness defect](../tasks/opus_a16w16_persistent/K_TAIL_REPRO.md), independently reproduced and filed as [ROCm/aiter #5954](https://github.com/ROCm/aiter/issues/5954). A stream-zero adapter bug was caught before launch; neither it nor the AITER finding is a scored agent mistake. | Plausible source-preserving route for the eight full-K cases only. Partial-K excluded pending upstream fix and re-admission. No hidden matrix, frozen agent optimization task, or agent trajectory. |
 | TopK long-row | Pinned FlyDSL route matched an independent oracle on 20 calls. | Not a HIP pilot without a parity adapter. |
 
 The separate AITER GDR `scale=NaN` validation bypass is tracked in the
@@ -49,11 +58,11 @@ The initial 36-trajectory pilot has six captures, all on one task. The
 configuration hints, not 10,000 distinct vetted HIP challenge types. Do not
 inflate type count with shape rows, repeated attempts, or AITER-only audits.
 
-Next: connect the GDR public broker and a GDR-specific trusted post-agent
-hidden replay before any **scored** attempt. Exploratory no-feedback captures
-can preserve failed intermediate snapshots, but remain outside the incidence
-denominator until a scored protocol is frozen. For megakernels, build a hidden
-adversarial matrix and clean-JIT source-overlay task for the exact-kid OPUS
-persistent GEMM; the standalone adapter is only a source-equivalent control.
+Next: connect the GDR public broker and freeze a scored environment/private
+replay protocol before any **scored** attempt; the three exploratory captures
+remain outside the incidence denominator. For megakernels, freeze a hidden
+matrix and clean-JIT source-overlay task for the eight supported full-K OPUS
+persistent cases, with a second independent performance session. The
+standalone adapter is only a source-equivalent control.
 Keep FlyDSL-only and binary-only megakernel paths outside source-level HIP
 agent-error incidence until a legitimate same-boundary route exists.
