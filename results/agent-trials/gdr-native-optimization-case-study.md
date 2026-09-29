@@ -1,9 +1,11 @@
-# GDR native-seed optimization: source-only case study
+# GDR native-seed optimization: exploratory case study
 
-**Draft, pending trusted GPU replay.** These three [unscored no-feedback
+These three [unscored no-feedback
 previews](gdr-native-optimization-previews.md) optimized one AITER-derived HIP
-kernel, not three kernel types. The source observations below are not bug or
-performance findings and do not enter the agent-error incidence denominator.
+kernel, not three kernel types. The [trusted replay
+receipt](gdr-native-optimization-replay-20260929.md) establishes tested
+correctness and public graph-performance outcomes, but not a scored parity or
+agent-error-incidence result. Source-level causes of latency remain hypotheses.
 The final source hashes and full private-capture commitments are in the capture
 receipt. `kernel.hip` line numbers below refer to each immutable private final
 snapshot, identified by replicate and snapshot number; no raw trajectory or
@@ -26,7 +28,35 @@ All three agents reported successful local `hipcc` compilation and inspected
 compiler metadata; those reports are not trusted GPU correctness or latency
 measurements.
 
-## Questions for replay
+## Measured outcome
+
+The trusted replay accepted each final source and its pinned task freeze. All
+three passed **6/6 visible** checks (including the explicit default-stream-0
+case) and **4/4 withheld** stateful correctness cases against the independent
+oracle and pinned AITER. This is evidence for the tested domain, not a proof
+that no other input can fail. Every public graph bucket was noise-qualified
+under the 5% relative-MAD cap. Ratios below are candidate/AITER within the
+same session; lower is better, and the public screen is `<=1.05` per bucket.
+
+| Candidate | Valid slots | Strided mixed | Batch 16 | Buckets meeting `<=1.05` |
+| --- | ---: | ---: | ---: | ---: |
+| `preview01` | 1.276437 | 1.270797 | 1.087302 | 0/3 |
+| `preview02` | 1.200599 | 1.221799 | 1.098378 | 0/3 |
+| `preview03` | 1.002299 | 1.003089 | 1.062332 | 2/3 |
+| `preview03` fresh public repeat, same binary | 1.005677 | 1.005309 | 1.072518 | 2/3 |
+
+Previews 1 and 2 have measured regressions in all three public buckets.
+Preview 3 is near the AITER baseline on the first two but exceeds the batch-16
+screen in two independent sessions: it was 6.23% and 7.25% slower than AITER,
+respectively. Its withheld correctness was not rerun in the second public-only
+session. The first replay
+and repeat used the same candidate binary; all listed samples passed the
+noise gate. The earlier pinned-seed smoke used a different host/container
+execution setup, so these within-session ratios should not be read as a
+cross-session absolute latency comparison. The measured slowdown does not by
+itself identify which agent edit caused it.
+
+## Mechanism hypotheses
 
 **Preview 1: wave-lane participation.** The source uses
 `lane = threadIdx.x & 63`, `k_lane = lane & 7`, and `v_lane = lane / 8` from
@@ -35,41 +65,57 @@ the unchanged starter. Its `ds_bpermute` source-lane indices target lane
 the selected producer lanes are active on the valid path, and the invalid-slot
 return is block-uniform. Still, correctness now depends on the exact gfx950
 wave intrinsic and execution-mask semantics at the reconverged broadcasts.
-Check valid, strided, invalid-sentinel, and repeated-state cases against the
-independent oracle before calling this an error. The performance question is
-whether fewer global loads/transcendental executions outweigh many wave
-permutations and masked arithmetic in the graph buckets.
+The visible and withheld replay found no mismatch in its tested valid,
+strided, invalid-sentinel, or repeated-state cases, so this is not an observed
+wave-semantics error. The 8.7-27.6% graph slowdown could reflect the cost of
+wave permutations or masked arithmetic offsetting fewer global loads and
+transcendental executions; that explanation is not isolated by this replay.
 
 **Preview 2: numerical and launch-boundary changes.** With 16 waves and
 `kVBlocks = 1`, `v_idx = warp * 8 + v_lane` covers all 128 V positions once;
 there is no obvious missing V tile in the source. The invalid path changes
 from scalar BF16 stores to one 16-byte store by lane 0 of each wave. Check
-guarded output coverage and alignment, especially on invalid-sentinel cases.
+guarded output coverage and alignment, especially on invalid-sentinel cases;
+the tested cases passed.
 The reciprocal seed plus Newton step is deliberately not the original divide;
 BF16 rounding close to a boundary could change `beta`, then state across
-repeated steps. Check exact output/state bytes on adversarial values. Even if
-correct, a 1024-thread workgroup can change scheduling/residency, so compiler
-occupancy metadata alone cannot establish a speedup.
+repeated steps, although the tested matrix found no mismatch. A 1024-thread
+workgroup can also change scheduling/residency. The 9.8-22.2% graph slowdown
+is measured; neither the larger workgroup, vector store, nor reciprocal is
+identified as its cause by these bundled edits.
 
 **Preview 3: lifetime versus latency hiding.** The final source moves state
 loads after Q/K work and recomputes the recurrent term from packed state for
 the store. That may reduce live registers but also remove memory-compute
 overlap and add arithmetic. The gate result is produced only on lane 0 and
-read with `readfirstlane` after reconvergence; as in preview 1, the valid-path
-lane participation must be checked on hardware, not assumed from the helper
-name. Compare both output and mutated state over repeated updates. The extra
-empty workspace directories and a rejected temporary-file cleanup command
-are capture/tool provenance, not kernel findings.
+read with `readfirstlane` after reconvergence; as in preview 1, the tested
+cases passed but do not prove every possible lane-mask condition. The
+batch-16 slowdown repeated, but this replay does not distinguish delayed
+state loads/recomputation from gate broadcast or another code-generation
+effect. The extra empty workspace directories and a rejected temporary-file
+cleanup command are capture/tool provenance, not kernel findings.
 
-## Evidence needed
+## Analyst controls to run
 
-For each frozen final snapshot, the trusted replay should independently pin
-the source/tree hash, compile with the task's fixed gfx950 flags, compare
-stateful output and guarded state with the CPU oracle and pinned AITER on
-visible plus withheld cases, and record the explicit default-stream-0 check.
-Only after correctness passes should the separate 32-call graph protocol
-compare all public buckets, including batch 16, with its contention and noise
-gates. Record compile failures and timeouts as such. If a case fails, preserve
-the raw private result and use a separately labeled analyst minimization to
-test the mechanism; do not retroactively edit an agent snapshot or relabel
-these previews as scored trials.
+These are proposed **analyst-only** source-preserving controls, not performed
+results. Keep each frozen agent snapshot immutable and compile separate copies
+with the same gfx950 flags and trusted host/container setup. Require guarded
+public and withheld correctness before graph timing, clean GPU PID gates,
+noise qualification, and a fresh-session repeat for close calls.
+
+1. For preview 1, retain its lane-0 gate calculation but restore the starter
+   Q/K/V load and reduction path in a separate copy. Compare that gate-only
+   control with the frozen final source to test the wave-permutation bundle;
+   split Q/K and V broadcasts only if that contrast is informative.
+2. For preview 2, make a geometry-only starter variant (`kVBlocks=1`,
+   `kWarps=16`) with the original divide and scalar invalid-zero stores.
+   Separately restore the original divide in a copy of the frozen final source
+   to test the reciprocal contribution without changing launch geometry.
+3. For preview 3, replay its captured snapshot 2 (scratch-lifetime change
+   only) against final snapshot 3 (scratch plus gate broadcast) on batch 16.
+   If the gap persists, use one gate-only copy of the starter to separate the
+   scratch rewrite from the gate change.
+
+None of these controls becomes another agent trial or an incidence sample.
+They can test mechanisms; they cannot retroactively make the agents' original
+performance guesses proven or turn an unscored preview into scored parity.
