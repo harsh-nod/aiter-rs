@@ -398,7 +398,12 @@ def run_agent(args: argparse.Namespace) -> int:
     if args.dry_run:
         print(json.dumps(record, sort_keys=True, indent=2))
         return 0
-    result_dir.mkdir(parents=True, exist_ok=False)
+    if brokered:
+        for private_parent in (result_dir.parent, feedback_private_root.parent):
+            private_parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+            if private_parent.stat().st_mode & 0o077:
+                raise ValueError("brokered capture and raw feedback parents must be private")
+    result_dir.mkdir(mode=0o700 if brokered else 0o777, parents=not brokered, exist_ok=False)
     workspace = result_dir / "workspace"
     shutil.copytree(task_path.parent / task["starter_dir"], workspace, symlinks=False)
     prompt = (task_path.parent / task["prompt_file"]).read_text(encoding="utf-8")

@@ -178,6 +178,9 @@ class LiveFeedbackTests(unittest.TestCase):
         run_dirs = list(results.iterdir())
         self.assertEqual(len(run_dirs), 1)
         run_dir = run_dirs[0]
+        self.assertEqual(results.stat().st_mode & 0o777, 0o700)
+        self.assertEqual(run_dir.stat().st_mode & 0o777, 0o700)
+        self.assertEqual((self.root / "broker-private").stat().st_mode & 0o777, 0o700)
         manifest = json.loads((run_dir / "manifest.json").read_text())
         result = json.loads((run_dir / "result.json").read_text())
         self.assertEqual(manifest["run_purpose"], "unscored_feedback_preview")
