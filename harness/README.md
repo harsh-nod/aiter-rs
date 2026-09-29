@@ -1,5 +1,12 @@
 # gfx950 parity scorer
 
+**Performance qualification is pending a revised timing protocol.** The
+current short-kernel event loop can include unequal Python-wrapper versus HIP
+ABI host enqueue gaps; its latency ratios do not establish device-kernel
+parity. See the [host-gap control](../results/2026-09-29-event-timing-host-gap.md).
+Correctness-only replay remains valid. New scored performance runs require a
+frozen graph-replay or profiler control, separate from this legacy scorer.
+
 `python3 -m harness.run` scores an agent-produced HIP shared library, not its
 source directory. The trusted runner compiles an immutable HIP source snapshot
 with a frozen `hipcc` command. The library must export the C ABI in

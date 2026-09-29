@@ -19,9 +19,11 @@ measurements.
 - The [sanitized scorer summary](remote-correctness-summary.json) records a
   correctness-only pass with withheld cases evaluated. Later
   [full performance replays](../../2026-09-28-quant-r001-performance-replays.md)
-  preserved the same binary and frozen task: two met every correctness,
-  latency, and noise rule; one failed only the medium-bucket noise gate.
-  This is not yet stable type-level parity admission or an agent-error rate.
+  preserved the same binary and frozen task: two met the original event-only
+  latency/noise rule; one failed the medium-bucket noise gate. The later
+  [host-gap control](../../2026-09-29-event-timing-host-gap.md) shows those
+  ratios cannot establish device-kernel parity. A revised timing protocol is
+  required before any performance admission; this is not an agent-error rate.
 - Raw evidence here: `events.jsonl`, `snapshots.jsonl`, `blobs/`, `diffs/`,
   `manifest.json`, `prompt.txt`, and `result.json`. Private case inputs and
   raw scorer output are not included.

@@ -155,6 +155,12 @@ samples, variance, and throughput where relevant. Freeze a per-task
 non-inferiority threshold before trials (default: HIP median latency no more
 than 5% above AITER in *every* required bucket, after measurement noise is
 qualified); do not let an aggregate hide a severe shape or tail regression.
+For short kernels, a GPU event around unequal host call paths can include CPU
+enqueue gaps. Before performance admission, verify the device-work boundary
+with controlled graph replay or profiling, and measure host/API latency
+separately when it is itself part of the contract. Freeze the corrected
+measurement protocol before new scored runs; earlier event-only ratios are
+not device-kernel parity evidence.
 For serving and persistent kernels, include p95 latency when relevant. MI350
 and MI355X are separate performance strata even though both are gfx950.
 Task selection must establish a plausible HIP parity route; unreachable
