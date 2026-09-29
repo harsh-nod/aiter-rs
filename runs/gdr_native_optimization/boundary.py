@@ -1,8 +1,4 @@
-"""Offline GDR optimization task freeze and public-feedback boundary.
-
-No agent or GPU job is launched by this module. A future trusted host broker
-may call ``process_request`` with a public-only scorer callback.
-"""
+"""GDR optimization task freeze and public-only feedback boundary."""
 
 from __future__ import annotations
 
@@ -16,6 +12,7 @@ from typing import Callable
 
 
 TASK_DIR = Path(__file__).resolve().parents[1] / "tasks/gdr_native_optimization_v1"
+LIVE_TASK_DIR = Path(__file__).resolve().parents[1] / "tasks/gdr_native_optimization_v2"
 SOURCE_FILES = {
     "kernel.hip",
     "gdr_decode_packed_bf16_abi.h",
@@ -23,6 +20,15 @@ SOURCE_FILES = {
     "public/large_fixture.json",
 }
 BUILD_FLAGS = ["-O3", "-shared", "-fPIC", "--offload-arch=gfx950"]
+LIVE_CONTAINER_EXECUTION = {
+    "uid_policy": "host_uid_nonroot",
+    "nss": "minimal_readonly",
+    "home": "/tmp",
+    "xdg_cache_home": "/tmp/.cache",
+    "aiter_jit_dir": "/tmp/aiter-jit-cache",
+    "network": "none",
+    "pid_namespace": "host",
+}
 RESPONSE_SCHEMA = "aiter-rs-gdr-opt-public-response-v1"
 REQUEST_SCHEMA = "aiter-rs-gdr-opt-public-request-v1"
 
@@ -52,7 +58,7 @@ def starter_hash(root: Path) -> str:
 def freeze_payload(task_dir: Path = TASK_DIR) -> dict:
     task_path = task_dir / "task.json"
     task = _read(task_path)
-    return {
+    payload = {
         "schema": "aiter-rs-task-freeze-v1",
         "task_sha256": sha256(task_path),
         "prompt_sha256": sha256(task_dir / task["prompt_file"]),
@@ -68,6 +74,10 @@ def freeze_payload(task_dir: Path = TASK_DIR) -> dict:
         "build_sources": task["build_sources"],
         "build_flags": task["build_flags"],
     }
+    if task["task_mode"] == "brokered_public_feedback":
+        helper = task_dir / task["feedback_helper_file"]
+        payload["feedback_helper_sha256"] = sha256(helper)
+    return payload
 
 
 def validate_task(task_dir: Path = TASK_DIR) -> tuple[dict, dict]:
@@ -76,10 +86,23 @@ def validate_task(task_dir: Path = TASK_DIR) -> tuple[dict, dict]:
     if _read(task_dir / "task.freeze.json") != freeze_payload(task_dir):
         raise ValueError("task/prompt/starter differs from frozen snapshot")
     starter = task_dir / "starter"
-    if task["task_mode"] != "no_feedback" or task["scored_eligible"] is not False:
-        raise ValueError("prototype must remain unscored and no-feedback")
+    if task["task_mode"] == "no_feedback":
+        if task["scored_eligible"] is not False:
+            raise ValueError("prototype must remain unscored")
+    elif task["task_mode"] == "brokered_public_feedback":
+        if task["scored_eligible"] is not False:
+            raise ValueError("live broker prototype must remain unscored")
+        if task.get("container_execution") != LIVE_CONTAINER_EXECUTION:
+            raise ValueError("live scorer container execution differs from the freeze")
+        helper = task_dir / task.get("feedback_helper_file", "")
+        if not helper.is_file() or sha256(helper) != task.get("feedback_helper_sha256"):
+            raise ValueError("agent-visible feedback helper differs from the freeze")
+        if contract.get("activation") != "live_broker_unscored_v2":
+            raise ValueError("live feedback contract has the wrong activation")
+    else:
+        raise ValueError("unknown GDR task mode")
     if task["visible_checks"] or task["hidden_checks"]:
-        raise ValueError("broker is not wired into agent capture")
+        raise ValueError("GDR feedback uses the trusted broker, not workspace checks")
     if task["build_sources"] != ["kernel.hip"] or task["build_flags"] != BUILD_FLAGS:
         raise ValueError("build command differs from fixed direct hipcc build")
     if task["aiter_sha"] != contract["aiter_sha"] or task["target_arch"] != "gfx950":
@@ -145,11 +168,18 @@ def compile_argv(snapshot: Path, output: Path, task: dict) -> list[str]:
 
 def public_container_command(snapshot: Path, repo: Path, aiter: Path, output: Path,
                              host_gpu_report: Path, task: dict, image: str,
-                             kind: str = "benchmark") -> list[str]:
+                             kind: str = "benchmark", task_dir: Path | None = None) -> list[str]:
     """Construct a public-only Docker invocation; no withheld path is accepted."""
     if kind not in {"correctness", "benchmark"}:
         raise ValueError("unknown public feedback kind")
     snapshot, repo, aiter, output = (path.resolve() for path in (snapshot, repo, aiter, output))
+    if task_dir is None:
+        relative_task = "runs/tasks/gdr_native_optimization_v1"
+    else:
+        task_dir = task_dir.resolve()
+        if not task_dir.is_relative_to(repo / "runs/tasks") or task_dir.parent != repo / "runs/tasks":
+            raise ValueError("task directory must be inside the trusted checkout")
+        relative_task = task_dir.relative_to(repo).as_posix()
     host_gpu_report = host_gpu_report.resolve()
     if not host_gpu_report.is_file() or sha256(host_gpu_report) != task["host_gpu_report_sha256"]:
         raise ValueError("trusted host GPU report differs from task pin")
@@ -190,7 +220,7 @@ def public_container_command(snapshot: Path, repo: Path, aiter: Path, output: Pa
         "-e", "PYTHONDONTWRITEBYTECODE=1", "-e", "PYTHONPATH=/workspace/aiter-rs:/workspace/aiter",
         image, "-m", "runs.gdr_native_optimization.public_score",
         "--snapshot", "/workspace/snapshot", "--aiter-source", "/workspace/aiter",
-        "--task-dir", "/workspace/aiter-rs/runs/tasks/gdr_native_optimization_v1",
+        "--task-dir", f"/workspace/aiter-rs/{relative_task}",
         "--output", "/workspace/output", "--kind", kind,
         "--host-gpu-report", "/workspace/attestation/gpu.json",
     ]

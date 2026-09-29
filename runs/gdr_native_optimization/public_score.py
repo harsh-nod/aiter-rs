@@ -12,6 +12,7 @@ import importlib
 import json
 import math
 import os
+import pwd
 import shutil
 import subprocess
 import sys
@@ -68,12 +69,28 @@ def run_public(args) -> dict:
         raise RuntimeError("trusted host GPU report differs from task pin")
     repo = args.task_dir.parents[2]
     git = ["git", "-c", f"safe.directory={repo}", "-C", str(repo)]
+    trusted_scopes = ["harness", "references"]
+    if task["task_mode"] == "brokered_public_feedback":
+        trusted_scopes += ["runs/runner.py", "runs/gdr_native_optimization"]
+        if os.getuid() == 0 or args.output.stat().st_uid != os.getuid():
+            raise RuntimeError("live scorer must run as the private output's non-root host UID")
+        if pwd.getpwuid(os.getuid()).pw_name != "aiter-replay":
+            raise RuntimeError("live scorer lacks its pinned minimal NSS identity")
+        expected_env = {
+            "HOME": "/tmp", "XDG_CACHE_HOME": "/tmp/.cache",
+            "AITER_JIT_DIR": "/tmp/aiter-jit-cache",
+        }
+        if any(os.environ.get(name) != value for name, value in expected_env.items()):
+            raise RuntimeError("live scorer cache/JIT environment differs from the task pin")
+        Path(expected_env["AITER_JIT_DIR"]).mkdir(parents=True, exist_ok=True)
+        if not os.access(expected_env["AITER_JIT_DIR"], os.W_OK):
+            raise RuntimeError("live scorer JIT cache is not writable")
     subprocess.run(
-        [*git, "diff", "--quiet", task["harness_revision"], "HEAD", "--", "harness", "references"],
+        [*git, "diff", "--quiet", task["harness_revision"], "HEAD", "--", *trusted_scopes],
         check=True, timeout=30,
     )
     subprocess.run(
-        [*git, "diff", "--quiet", "--", "harness", "references"],
+        [*git, "diff", "--quiet", "--", *trusted_scopes],
         check=True, timeout=30,
     )
     source_hashes = validate_source_tree(args.snapshot, {
@@ -110,6 +127,9 @@ def run_public(args) -> dict:
         "build_argv": ["hipcc", *task["build_flags"], "kernel.hip", "-o", "libcandidate.so"],
         "build_returncode": build.returncode,
     }
+    if task["task_mode"] == "brokered_public_feedback":
+        raw["container_execution"] = task["container_execution"]
+        raw["container_uid"] = os.getuid()
     if build.returncode != 0 or not library.is_file():
         raw.update({
             "status": "compile_failed", "visible_case_results": {},

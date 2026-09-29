@@ -1,0 +1,24 @@
+{
+  "aiter_sha": "868ccf62a0bcad3aa47f92728340ccb37ed4fb39",
+  "build_flags": [
+    "-O3",
+    "-shared",
+    "-fPIC",
+    "--offload-arch=gfx950"
+  ],
+  "build_sources": [
+    "kernel.hip"
+  ],
+  "feedback_helper_sha256": "92ffed66da7977c99654b311140526936ee0f9b1ee6a7e588c084c62c10c9554",
+  "gpu_sku": "AMD Instinct MI350X",
+  "harness_revision": "c3f23cea067815e5f9bdbfd2843ac6965b12f96e",
+  "harness_spec_sha256": "fb5fdbfd031fa3d9fbf64a716b067b260d63ef29911e468e98a8279301a53145",
+  "prompt_sha256": "d023172d3ae8275500b5c4a7c36e4c023c717c9e33ea4f104d0b339f44634069",
+  "schema": "aiter-rs-task-freeze-v1",
+  "starter_tree_sha256": "a70e75fabc65944ad487bd3d539d49c1ada1a081605299431ca433251ce3fe84",
+  "target_arch": "gfx950",
+  "task_id": "gfx950.gdr_decode_packed_bf16.stateful.v1",
+  "task_mode": "brokered_public_feedback",
+  "task_revision": "native-opt-live-feedback-prototype-v2",
+  "task_sha256": "93364bbea18cc73e93e8ab1a19d5fc90a9dfc6f2974f85a5fc786bf81307b729"
+}

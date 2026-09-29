@@ -18,6 +18,7 @@ import subprocess
 from pathlib import Path
 
 from runs.gdr_native_optimization.boundary import (
+    LIVE_TASK_DIR,
     TASK_DIR,
     canonical,
     public_container_command,
@@ -134,7 +135,8 @@ def validate_capture(run_dir: Path, task_dir: Path = TASK_DIR) -> tuple[dict, di
     manifest = _read(run_dir / "manifest.json")
     result = _read(run_dir / "result.json")
     freeze = freeze_payload(task_dir / "task.json")
-    if manifest.get("schema") != "aiter-rs-agent-run-v1" or manifest.get("run_purpose") != "unscored_preview":
+    purpose = ("unscored_feedback_preview" if task_dir.resolve() == LIVE_TASK_DIR else "unscored_preview")
+    if manifest.get("schema") != "aiter-rs-agent-run-v1" or manifest.get("run_purpose") != purpose:
         raise ValueError("capture is not an unscored agent preview")
     if manifest.get("incidence_eligible") is not False or result.get("incidence_eligible") is not False:
         raise ValueError("capture claims incidence eligibility")
@@ -144,6 +146,11 @@ def validate_capture(run_dir: Path, task_dir: Path = TASK_DIR) -> tuple[dict, di
         raise ValueError("agent capture did not finish cleanly")
     if result.get("agent_exit_code") != 0 or result.get("scored") is not False:
         raise ValueError("capture exit or scoring status is inconsistent")
+    if purpose == "unscored_feedback_preview":
+        feedback = result.get("feedback", {})
+        if (feedback.get("status") != "complete" or feedback.get("request_limit") != 3 or
+                not 0 <= feedback.get("request_count", -1) <= 3):
+            raise ValueError("live public feedback capture has an incomplete broker record")
     expected_prefix = task["task_id"] + "--" + task["task_revision"] + "--"
     if not isinstance(manifest.get("run_id"), str) or not manifest["run_id"].startswith(expected_prefix):
         raise ValueError("agent run ID differs from task identity")
@@ -207,13 +214,14 @@ def prepare_snapshot(run_dir: Path, task_dir: Path, private_root: Path) -> dict:
 
 
 def validate_private_inputs(withheld: Path, report: Path, task: dict, run_dir: Path,
-                            repo: Path, aiter: Path) -> int:
+                            repo: Path, aiter: Path, task_dir: Path = TASK_DIR) -> int:
     withheld = _private_path(withheld, run_dir, repo, aiter)
     report = _private_path(report, run_dir, repo, aiter)
     if withheld == report:
         raise ValueError("host report and withheld manifest are the same file")
-    spec = _read(repo / "runs/tasks/gdr_native_optimization_v1/starter/public/spec.json")
-    if sha256(repo / "runs/tasks/gdr_native_optimization_v1/starter/public/spec.json") != task["harness_spec_sha256"]:
+    spec_path = task_dir / "starter/public/spec.json"
+    spec = _read(spec_path)
+    if sha256(spec_path) != task["harness_spec_sha256"]:
         raise ValueError("public scorer spec differs from task pin")
     if sha256(withheld) != spec["withheld_cases_sha256"]:
         raise ValueError("withheld matrix differs from public commitment")
@@ -233,7 +241,7 @@ def validate_private_inputs(withheld: Path, report: Path, task: dict, run_dir: P
     return len(cases)
 
 
-def validate_checkouts(repo: Path, aiter: Path, task: dict) -> None:
+def validate_checkouts(repo: Path, aiter: Path, task: dict, task_dir: Path = TASK_DIR) -> None:
     def git(root: Path, *argv: str) -> str:
         return subprocess.check_output(
             ["git", "-c", f"safe.directory={root}", "-C", str(root), *argv],
@@ -246,13 +254,19 @@ def validate_checkouts(repo: Path, aiter: Path, task: dict) -> None:
         raise ValueError("AITER source is dirty")
     if git(repo, "diff", "--name-only", task["harness_revision"], "HEAD", "--", "harness", "references"):
         raise ValueError("trusted harness differs from task revision")
+    if task_dir.resolve() == LIVE_TASK_DIR and git(
+        repo, "diff", "--name-only", task["harness_revision"], "HEAD", "--",
+        "runs/runner.py", "runs/gdr_native_optimization",
+    ):
+        raise ValueError("trusted live-feedback scorer differs from task revision")
     if git(repo, "status", "--porcelain", "--untracked-files=all", "--", "harness", "references",
-           "runs/runner.py", "runs/gdr_native_optimization", "runs/tasks/gdr_native_optimization_v1"):
+           "runs/runner.py", "runs/gdr_native_optimization", str(task_dir.relative_to(repo))):
         raise ValueError("trusted replay checkout has dirty source")
 
 
 def hidden_container_command(binary: Path, repo: Path, aiter: Path, withheld: Path,
-                             report: Path, output: Path, task: dict, image: str) -> list[str]:
+                             report: Path, output: Path, task: dict, image: str,
+                             task_dir: Path | None = None) -> list[str]:
     binary, repo, aiter, withheld, report, output = (
         path.resolve() for path in (binary, repo, aiter, withheld, report, output)
     )
@@ -268,6 +282,11 @@ def hidden_container_command(binary: Path, repo: Path, aiter: Path, withheld: Pa
     ).strip()
     if image_id != task["compiler_image_id"]:
         raise ValueError("scorer image differs from task pin")
+    if task_dir is None:
+        task_dir = repo / "runs/tasks/gdr_native_optimization_v1"
+    task_dir = task_dir.resolve()
+    if task_dir not in {repo / "runs/tasks/gdr_native_optimization_v1", repo / "runs/tasks/gdr_native_optimization_v2"}:
+        raise ValueError("hidden scorer task is not an admitted trusted revision")
     mounts = (
         (binary, "/workspace/candidate/libcandidate.so", True),
         (repo, "/workspace/aiter-rs", True),
@@ -286,7 +305,7 @@ def hidden_container_command(binary: Path, repo: Path, aiter: Path, withheld: Pa
     command += [
         "-e", "PYTHONDONTWRITEBYTECODE=1", "-e", "PYTHONPATH=/workspace/aiter-rs:/workspace/aiter",
         image, "-m", "harness.gdr_score",
-        "--spec", "/workspace/aiter-rs/runs/tasks/gdr_native_optimization_v1/starter/public/spec.json",
+        "--spec", f"/workspace/aiter-rs/{task_dir.relative_to(repo).as_posix()}/starter/public/spec.json",
         "--candidate", "/workspace/candidate/libcandidate.so",
         "--aiter-source", "/workspace/aiter",
         "--withheld-spec", "/workspace/hidden/withheld.json",
@@ -401,18 +420,18 @@ def replay(args) -> dict:
         path.resolve() for path in (args.run_dir, args.task_dir, args.repo, args.aiter_source, args.output)
     )
     private_root = _private_path(private_root, run_dir, repo, aiter)
-    if task_dir != repo / "runs/tasks/gdr_native_optimization_v1":
+    if task_dir not in {repo / "runs/tasks/gdr_native_optimization_v1", repo / "runs/tasks/gdr_native_optimization_v2"}:
         raise ValueError("task directory must be the pinned trusted checkout task")
     task, _ = validate_task(task_dir)
-    validate_checkouts(repo, aiter, task)
-    hidden_count = validate_private_inputs(args.withheld_spec, args.host_gpu_report, task, run_dir, repo, aiter)
+    validate_checkouts(repo, aiter, task, task_dir)
+    hidden_count = validate_private_inputs(args.withheld_spec, args.host_gpu_report, task, run_dir, repo, aiter, task_dir)
     provenance = prepare_snapshot(run_dir, task_dir, private_root)
     provenance["withheld_cases_sha256"] = _read(task_dir / "starter/public/spec.json")["withheld_cases_sha256"]
     public_dir = private_root / "public"
     public_dir.mkdir(mode=0o700)
     public_command = public_container_command(
         provenance["restored_source"], repo, aiter, public_dir, args.host_gpu_report,
-        task, args.image, "benchmark",
+        task, args.image, "benchmark", task_dir,
     )
     public_run = _run_owned_container(public_command, "public", private_root, repo,
                                       args.public_wall_seconds)
@@ -465,7 +484,7 @@ def replay(args) -> dict:
     hidden_dir.mkdir(mode=0o700)
     hidden_command = hidden_container_command(
         binary, repo, aiter, args.withheld_spec, args.host_gpu_report, hidden_dir,
-        task, args.image,
+        task, args.image, task_dir,
     )
     hidden_run = _run_owned_container(hidden_command, "withheld", private_root, repo,
                                       args.hidden_wall_seconds)

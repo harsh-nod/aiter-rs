@@ -58,8 +58,8 @@ def read_task(path: Path) -> dict:
         raise ValueError(f"missing task fields: {', '.join(sorted(missing))}")
     if task["target_arch"] != "gfx950":
         raise ValueError("only gfx950 tasks are eligible")
-    if task["task_mode"] not in {"no_feedback", "visible_tests_available"}:
-        raise ValueError("task_mode must be no_feedback or visible_tests_available")
+    if task["task_mode"] not in {"no_feedback", "visible_tests_available", "brokered_public_feedback"}:
+        raise ValueError("unknown task_mode")
     if not all(isinstance(task[k], str) and task[k] for k in required):
         raise ValueError("required task fields must be nonempty strings")
     for key in ("task_id", "task_revision"):
@@ -93,6 +93,20 @@ def read_task(path: Path) -> dict:
         raise ValueError("no_feedback task cannot list visible checks")
     if task["task_mode"] == "visible_tests_available" and not task.get("visible_checks"):
         raise ValueError("visible_tests_available task requires visible checks")
+    if task["task_mode"] == "brokered_public_feedback":
+        if task.get("visible_checks") or task.get("hidden_checks"):
+            raise ValueError("brokered feedback cannot execute workspace checks")
+        helper_name = task.get("feedback_helper_file")
+        if not isinstance(helper_name, str) or not helper_name:
+            raise ValueError("brokered feedback needs a pinned helper file")
+        helper_relative = Path(helper_name)
+        if helper_relative.is_absolute() or ".." in helper_relative.parts:
+            raise ValueError("feedback helper must be inside the task directory")
+        helper = (path.parent / helper_relative).resolve()
+        if not helper.is_relative_to(path.parent.resolve()) or not helper.is_file():
+            raise ValueError("feedback helper is missing or escapes the task directory")
+        if file_digest(helper) != task.get("feedback_helper_sha256"):
+            raise ValueError("feedback helper differs from the frozen task")
     return task
 
 
@@ -108,7 +122,7 @@ def starter_hash(root: Path) -> str:
 
 def freeze_payload(task_path: Path) -> dict:
     task = read_task(task_path)
-    return {
+    payload = {
         "schema": "aiter-rs-task-freeze-v1",
         "task_sha256": digest(task_path.read_bytes()),
         "prompt_sha256": digest((task_path.parent / task["prompt_file"]).read_bytes()),
@@ -124,6 +138,9 @@ def freeze_payload(task_path: Path) -> dict:
         "build_sources": task.get("build_sources"),
         "build_flags": task.get("build_flags"),
     }
+    if task["task_mode"] == "brokered_public_feedback":
+        payload["feedback_helper_sha256"] = task["feedback_helper_sha256"]
+    return payload
 
 
 def write_json_exclusive(path: Path, value: object) -> None:
@@ -133,7 +150,8 @@ def write_json_exclusive(path: Path, value: object) -> None:
         out.write("\n")
 
 
-def agent_sandbox_command(cli: str, workspace: Path, model: str, reasoning_effort: str) -> tuple[list[str], dict[str, str], dict, list[Path]]:
+def agent_sandbox_command(cli: str, workspace: Path, model: str, reasoning_effort: str,
+                          feedback_helper: Path | None = None) -> tuple[list[str], dict[str, str], dict, list[Path]]:
     bwrap = shutil.which("bwrap")
     if bwrap is None:
         raise ValueError("bwrap is required for agent execution; refusing an unsandboxed run")
@@ -176,6 +194,10 @@ def agent_sandbox_command(cli: str, workspace: Path, model: str, reasoning_effor
         "--bind", str(workspace), "/workspace",
         "--ro-bind", str(cli_binary), "/codex",
     ))
+    if feedback_helper is not None:
+        if not feedback_helper.is_file():
+            raise ValueError("pinned public feedback helper is missing")
+        command.extend(("--ro-bind", str(feedback_helper), "/public-feedback.py"))
     ephemeral_codex_files = [auth]
     for name in ("cloud-config-bundle-cache.json", "cloud-requirements-cache.json", "installation_id"):
         cache = auth_home / name
@@ -214,6 +236,8 @@ def agent_sandbox_command(cli: str, workspace: Path, model: str, reasoning_effor
         "network": "shared for model API access; no SSH credentials or agent socket forwarded",
         "cli_sha256": file_digest(cli_binary),
     }
+    if feedback_helper is not None:
+        isolation["public_feedback_helper_sha256"] = file_digest(feedback_helper)
     return command, agent_env, isolation, ephemeral_codex_files
 
 
@@ -289,8 +313,11 @@ class Snapshotter:
 def run_agent(args: argparse.Namespace) -> int:
     task_path = args.task.resolve()
     task = read_task(task_path)
+    brokered = task["task_mode"] == "brokered_public_feedback"
     if args.unscored_preview and task.get("scored_eligible") is not False:
         raise ValueError("unscored preview requires scored_eligible=false")
+    if brokered and task.get("scored_eligible") is not False:
+        raise ValueError("live broker revision is not admitted for scored agents")
     if not args.dry_run and not args.unscored_preview:
         if task.get("scored_eligible") is not True:
             raise ValueError("task must explicitly be marked scored_eligible to launch an agent")
@@ -310,14 +337,35 @@ def run_agent(args: argparse.Namespace) -> int:
         raise ValueError("replicate_id must be a single safe path component")
     run_id = f"{task['task_id']}--{task['task_revision']}--{args.replicate_id}"
     result_dir = args.results.resolve() / run_id
+    feedback_config = getattr(args, "feedback_config", None)
+    feedback_private_root = getattr(args, "feedback_private_root", None)
+    if brokered and not args.dry_run:
+        repo = task_path.parents[3]
+        if not args.unscored_preview:
+            raise ValueError("brokered task currently supports unscored previews only")
+        if feedback_config is None or feedback_private_root is None:
+            raise ValueError("brokered task needs trusted remote config and private feedback root")
+        feedback_config = feedback_config.resolve()
+        feedback_private_root = feedback_private_root.resolve() / run_id
+        if (not feedback_config.is_file() or feedback_config.is_relative_to(repo) or
+                feedback_config.is_relative_to(result_dir) or
+                feedback_private_root.is_relative_to(repo) or
+                feedback_private_root.is_relative_to(result_dir) or
+                result_dir.is_relative_to(repo)):
+            raise ValueError("brokered capture/config/raw feedback must remain outside the repository and agent run")
     cli = shutil.which(args.cli)
     if cli is None:
         raise ValueError(f"agent CLI not found: {args.cli}")
     version = subprocess.run([cli, "--version"], capture_output=True, text=True, check=True, timeout=10).stdout.strip()
-    command, agent_env, isolation, ephemeral_codex_files = agent_sandbox_command(cli, result_dir / "workspace", args.model, args.reasoning_effort)
+    feedback_helper = task_path.parent / task["feedback_helper_file"] if brokered else None
+    command, agent_env, isolation, ephemeral_codex_files = agent_sandbox_command(
+        cli, result_dir / "workspace", args.model, args.reasoning_effort, feedback_helper
+    )
     codex_home = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))).resolve()
     private_mounts = {str(codex_home / name): f"<host-codex-{name}>" for name in ("auth.json", "cloud-config-bundle-cache.json", "cloud-requirements-cache.json", "installation_id")}
     private_mounts[str(Path(cli).resolve())] = "<host-codex-binary>"
+    if feedback_helper is not None:
+        private_mounts[str(feedback_helper.resolve())] = "<trusted-public-feedback-helper>"
     if os.environ.get("SSL_CERT_FILE") or os.environ.get("NODE_EXTRA_CA_CERTS"):
         private_mounts[str(Path(os.environ.get("SSL_CERT_FILE") or os.environ["NODE_EXTRA_CA_CERTS"]).resolve())] = "<host-api-ca-certificate>"
     private_mounts[str(result_dir / "workspace")] = "<host-agent-workspace>"
@@ -331,10 +379,22 @@ def run_agent(args: argparse.Namespace) -> int:
         "wall_seconds": args.wall_seconds,
         "command": safe_command,
         "isolation": isolation,
-        "run_purpose": "command_preview" if args.dry_run else ("unscored_preview" if args.unscored_preview else "scored_trial_capture"),
+        "run_purpose": "command_preview" if args.dry_run else (
+            "unscored_feedback_preview" if brokered else (
+                "unscored_preview" if args.unscored_preview else "scored_trial_capture"
+            )
+        ),
         "incidence_eligible": not args.dry_run and not args.unscored_preview,
         "status": "dry_run" if args.dry_run else "running",
     }
+    if brokered:
+        record["feedback"] = {
+            "mode": "brokered_public_feedback",
+            "request_limit": 3,
+            "public_only_during_capture": True,
+            "private_manifest_mounted_during_capture": False,
+            "trusted_config_sha256": file_digest(feedback_config) if feedback_config is not None and feedback_config.is_file() else None,
+        }
     if args.dry_run:
         print(json.dumps(record, sort_keys=True, indent=2))
         return 0
@@ -342,12 +402,28 @@ def run_agent(args: argparse.Namespace) -> int:
     workspace = result_dir / "workspace"
     shutil.copytree(task_path.parent / task["starter_dir"], workspace, symlinks=False)
     prompt = (task_path.parent / task["prompt_file"]).read_text(encoding="utf-8")
-    feedback = ("No supplied correctness-test feedback is available during this attempt." if task["task_mode"] == "no_feedback" else "Visible checks are supplied in this workspace; you may run them during the attempt.")
+    if brokered:
+        feedback = ("Public-only feedback is available through `python3 /public-feedback.py correctness` "
+                    "or `python3 /public-feedback.py benchmark`, at most three requests. "
+                    "The private test manifest is unavailable during this attempt.")
+    elif task["task_mode"] == "no_feedback":
+        feedback = "No supplied correctness-test feedback is available during this attempt."
+    else:
+        feedback = "Visible checks are supplied in this workspace; you may run them during the attempt."
     prompt = f"Implement the specified HIP kernel in this workspace. Target gfx950. {feedback} Do not attempt to access hidden tests.\n\n{prompt}"
     (result_dir / "prompt.txt").write_text(prompt, encoding="utf-8")
     write_json_exclusive(result_dir / "manifest.json", record)
     snapshotter = Snapshotter(workspace, result_dir)
     snapshotter.capture("starter")
+    broker = None
+    if brokered:
+        from runs.gdr_native_optimization.live_feedback import LiveFeedbackBroker, RemotePublicScorer
+
+        scorer = RemotePublicScorer(feedback_config, feedback_private_root, run_id)
+        broker = LiveFeedbackBroker(
+            workspace, feedback_private_root, task_path.parent, scorer, snapshotter.capture
+        )
+        broker.start()
     stop = threading.Event()
     snapshot_error: list[str] = []
 
@@ -416,6 +492,7 @@ def run_agent(args: argparse.Namespace) -> int:
             events.write(pending)
         selector.close()
         process.stdout.close()
+    feedback_result = broker.close() if broker is not None else None
     stop.set()
     watcher.join(timeout=2)
     try:
@@ -433,9 +510,13 @@ def run_agent(args: argparse.Namespace) -> int:
         "incidence_eligible": record["incidence_eligible"],
         "scoring_note": "No correctness or performance result is implied by an agent CLI exit code.",
     }
+    if feedback_result is not None:
+        final["feedback"] = feedback_result
     write_json_exclusive(result_dir / "result.json", final)
     print(json.dumps({"run_dir": str(result_dir), **final}, sort_keys=True))
-    return 0 if final["status"] == "completed" and not snapshot_error else 1
+    return 0 if final["status"] == "completed" and not snapshot_error and (
+        feedback_result is None or feedback_result["status"] == "complete"
+    ) else 1
 
 
 def checked_git_head(root: Path, expected: str, scopes: list[str]) -> None:
@@ -674,6 +755,8 @@ def main() -> int:
     run.add_argument("--reasoning-effort", choices=("low", "medium", "high", "xhigh", "max"), default="medium")
     run.add_argument("--cli", default="codex")
     run.add_argument("--wall-seconds", type=int, default=1800)
+    run.add_argument("--feedback-config", type=Path, help="trusted private public-only SSH scorer configuration")
+    run.add_argument("--feedback-private-root", type=Path, help="host-only directory for raw public feedback")
     preview = run.add_mutually_exclusive_group()
     preview.add_argument("--dry-run", action="store_true")
     preview.add_argument("--unscored-preview", action="store_true", help="run a non-eligible exploratory task without incidence scoring")
