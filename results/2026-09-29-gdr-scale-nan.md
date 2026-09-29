@@ -30,3 +30,4 @@ agent-authored HIP-error incidence denominator. Public GitHub issue/PR
 searches for this specific GDR NaN-scale case found no match on this date.
 The same wrapper comparison was present on AITER `main` at
 `2b6ff3d6b5bd20ea7197bfb6d7307e4a235904a2` when checked.
+Reported upstream as [ROCm/aiter#5951](https://github.com/ROCm/aiter/issues/5951).
