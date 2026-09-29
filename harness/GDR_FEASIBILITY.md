@@ -31,3 +31,10 @@ result remains a feasibility signal, not scored performance parity. A later
 the event intervals can also include unequal AITER-wrapper versus candidate
 ABI CPU enqueue time. The apparent speed margin is not a device-kernel parity
 result, even in the noise-qualified replay.
+
+The optional `--graph-repetitions 32` control captures 32 successive stateful
+operator calls per implementation and times graph replay, dividing elapsed
+time by 32. It resets state outside the timed interval and checks the final
+state/output against 32 CPU-oracle steps. This substantially amortizes host
+enqueue gaps; it is a separate, explicitly labeled feasibility measurement,
+not a retroactive replacement for the original samples or a scored task.

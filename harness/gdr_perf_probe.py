@@ -35,7 +35,7 @@ def benchmark_cases(spec: dict) -> list[dict]:
     return selected
 
 
-def benchmark_case(plugin, candidate, case: dict) -> dict:
+def benchmark_case(plugin, candidate, case: dict, graph_repetitions: int = 1) -> dict:
     import torch
 
     cpu_state = plugin.make_initial_state(case)
@@ -83,16 +83,34 @@ def benchmark_case(plugin, candidate, case: dict) -> dict:
             variants[name][2]()
             torch.cuda.synchronize()
 
+    timed_calls = {name: variant[2] for name, variant in variants.items()}
+    if graph_repetitions > 1:
+        graphs = {}
+        for name, (_, _, call) in variants.items():
+            reset(name)
+            graph = torch.cuda.CUDAGraph()
+            with torch.cuda.graph(graph):
+                for _ in range(graph_repetitions):
+                    call()
+            graphs[name] = graph
+            timed_calls[name] = graph.replay
+        for _ in range(WARMUP):
+            for name in variants:
+                reset(name)
+                timed_calls[name]()
+                torch.cuda.synchronize()
+
     samples = {"aiter_ms": [], "candidate_ms": []}
     for iteration in range(REPEATS):
         order = ("aiter", "candidate") if iteration % 2 == 0 else ("candidate", "aiter")
         for name in order:
             reset(name)
-            elapsed = _timed_call(variants[name][2])
+            elapsed = _timed_call(timed_calls[name]) / graph_repetitions
             samples["aiter_ms" if name == "aiter" else "candidate_ms"].append(elapsed)
 
     expected_state = cpu_state.clone()
-    expected_out = plugin.oracle_step(cpu_inputs, case["indices"], expected_state)
+    for _ in range(graph_repetitions):
+        expected_out = plugin.oracle_step(cpu_inputs, case["indices"], expected_state)
     for state, output, _ in variants.values():
         plugin.compare_step(
             cpu_inputs, case["indices"], expected_out, expected_state,
@@ -127,7 +145,10 @@ def run_probe(args) -> dict:
             "performance": {"status": "not_run"}, "environment": environment,
         }
 
-    samples = {case["id"]: benchmark_case(plugin, candidate, case) for case in selected}
+    samples = {
+        case["id"]: benchmark_case(plugin, candidate, case, args.graph_repetitions)
+        for case in selected
+    }
     postflight = _command("rocm-smi", "--showpids")
     if "KFD process information" not in postflight:
         raise RuntimeError("GPU process postflight unavailable")
@@ -151,7 +172,10 @@ def main() -> int:
     parser.add_argument("--aiter-source", required=True, type=Path)
     parser.add_argument("--host-gpu-report", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--graph-repetitions", type=int, default=1)
     args = parser.parse_args()
+    if args.graph_repetitions < 1:
+        parser.error("--graph-repetitions must be positive")
     for field in ("spec", "candidate", "aiter_source", "host_gpu_report", "output"):
         setattr(args, field, getattr(args, field).resolve())
     if args.output.is_relative_to(Path.cwd().resolve()):
@@ -166,6 +190,10 @@ def main() -> int:
         "spec_raw_sha256": args.spec_sha256,
         "candidate_binary_raw_sha256": args.candidate_sha256,
         "warmup": WARMUP, "repeats": REPEATS,
+        "graph_repetitions": args.graph_repetitions,
+        "timing_mode": (
+            "cuda_graph_replay" if args.graph_repetitions > 1 else "direct_call_gpu_events"
+        ),
         "bucket_case_ids": list(BUCKET_CASE_IDS),
         "threshold_ratio": MAX_LATENCY_RATIO, "max_mad_ratio": MAX_MAD_RATIO,
     }
