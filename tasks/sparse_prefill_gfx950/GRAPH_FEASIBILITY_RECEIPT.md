@@ -1,5 +1,11 @@
 # Analyst graph feasibility receipt
 
+**Superseded for post-graph correctness.** This probe's final check launched a
+fresh direct call before comparing output, so it could mask a graph-replay
+error. The raw result below is retained unchanged for provenance, but its
+post-graph correctness assertion must not be used. See the subsequent
+read-only post-replay control receipt.
+
 On 2026-09-29, the correct, unscored analyst HIP control was compared with
 the pinned AITER gfx950 low-level sparse-prefill call on one gfx950 GPU. The
 AITER SHA was `868ccf62a0bcad3aa47f92728340ccb37ed4fb39`, the HIP source
@@ -19,9 +25,10 @@ and private raw-result SHA256 commitment is
 The corrected probe source SHA256 was
 `4ec7b5bbe635979c6333397fd9ea1715b399622572c1a27ea9a563000da3de55`.
 It used GPU events around each 32-call graph replay, five graph warmups, and
-20 alternating AITER/HIP pairs per public bucket. Both implementations passed
-the CPU oracle, output guards, and unchanged-input checks before and after
-timing, with zero mismatched elements at the scorer tolerance.
+20 alternating AITER/HIP pairs per public bucket. The direct preflight checks
+passed. The reported final checks also passed, but they followed a fresh
+direct operator call and therefore do **not** establish correctness of the
+graph outputs.
 
 | Public bucket | AITER median (us/call) | HIP median (us/call) | HIP/AITER | AITER MAD/median | HIP MAD/median | Gate |
 | --- | ---: | ---: | ---: | ---: | ---: | --- |

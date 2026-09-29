@@ -68,12 +68,9 @@ def summarize_samples(aiter_ms: list[float], candidate_ms: list[float]) -> dict:
     }
 
 
-def checked_output(call, gpu_inputs: dict, cpu_inputs: dict, storage: torch.Tensor,
-                   expected: torch.Tensor) -> dict:
+def inspect_output(gpu_inputs: dict, cpu_inputs: dict, storage: torch.Tensor,
+                   expected: torch.Tensor, return_code: int = 0) -> dict:
     output = storage[GUARD:-GUARD].view_as(expected)
-    output.fill_(POISON)
-    code = call()
-    torch.cuda.synchronize()
     return compare_output(
         output.cpu(), expected,
         guard_before=storage[:GUARD].cpu(),
@@ -81,8 +78,16 @@ def checked_output(call, gpu_inputs: dict, cpu_inputs: dict, storage: torch.Tens
         inputs_unchanged=all(
             torch.equal(tensor.cpu(), cpu_inputs[name]) for name, tensor in gpu_inputs.items()
         ),
-        return_code=code,
+        return_code=return_code,
     )
+
+
+def checked_output(call, gpu_inputs: dict, cpu_inputs: dict, storage: torch.Tensor,
+                   expected: torch.Tensor) -> dict:
+    storage[GUARD:-GUARD].view_as(expected).fill_(POISON)
+    code = call()
+    torch.cuda.synchronize()
+    return inspect_output(gpu_inputs, cpu_inputs, storage, expected, code)
 
 
 def elapsed_ms(graph: torch.cuda.CUDAGraph, start: torch.cuda.Event,
@@ -150,13 +155,17 @@ def benchmark_case(case: Case, op, candidate: HipCandidate) -> dict:
             samples[f"{name}_ms_per_call"].append(elapsed_ms(*graphs[name]))
 
     after = {
-        name: checked_output(call, gpu_inputs, cpu_inputs, storages[name], expected)
-        for name, call in calls.items()
+        name: inspect_output(gpu_inputs, cpu_inputs, storages[name], expected)
+        for name in calls
     }
     if not all(result["passed"] for result in after.values()):
-        return {"status": "correctness_failed_after", "before": before, "after": after}
+        return {
+            "status": "correctness_failed_after", "before": before, "after": after,
+            "after_check": "read_only_post_graph_replay",
+        }
     return {
         "status": "complete", "before": before, "after": after,
+        "after_check": "read_only_post_graph_replay",
         "samples": samples,
         "summary": summarize_samples(
             samples["aiter_ms_per_call"], samples["candidate_ms_per_call"]

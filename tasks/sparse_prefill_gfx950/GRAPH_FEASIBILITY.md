@@ -7,8 +7,9 @@ scored performance result. The two public buckets are `mixed_sources` and
 `tile_tail_63_64_65`; no private case is used for timing.
 
 For each bucket, the probe checks both implementations against the independent
-CPU oracle and verifies output guards and unchanged inputs before and after
-timing. It captures 32 calls per graph, runs five graph warmup replays, then
+CPU oracle and verifies output guards and unchanged inputs with a direct
+preflight call and a **read-only** inspection of the output left by the final
+graph replay. It captures 32 calls per graph, runs five graph warmup replays, then
 collects 20 alternating AITER/HIP pairs. ROCm disallows external timing-event
 nodes inside captured graphs, so GPU events bracket each graph replay. This
 boundary can include host enqueue delay; the 32 captured calls amortize it,
