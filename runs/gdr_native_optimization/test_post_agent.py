@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+import os
 import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from subprocess import CompletedProcess
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -16,6 +19,7 @@ from runs.gdr_native_optimization.post_agent import (
     hidden_container_command,
     prepare_snapshot,
     replay,
+    _run_owned_container,
     validate_capture,
     validate_private_inputs,
 )
@@ -140,6 +144,59 @@ class PostAgentTests(unittest.TestCase):
         self.assertFalse(any("workspace/snapshot" in mount for mount in mounts))
         self.assertIn("--withheld-spec", command)
 
+    def test_owned_docker_timeout_removes_only_matching_cid(self):
+        private = self.root / "owned"
+        private.mkdir(mode=0o700)
+        cid = "a" * 64
+        observations = []
+
+        def fake_limited(command, cwd, stdout, stderr, wall):
+            self.assertEqual(command[:2], ["docker", "run"])
+            self.assertEqual(command[command.index("--name") + 1].split("-")[-1], "public")
+            self.assertIn("--label", command)
+            self.assertEqual(command[command.index("--user") + 1], f"{os.getuid()}:{os.getgid()}")
+            self.assertIn("HOME=/tmp", command)
+            self.assertIn("XDG_CACHE_HOME=/tmp/.cache", command)
+            Path(command[command.index("--cidfile") + 1]).write_text(cid + "\n")
+            observations.append("timed_out")
+            return {"status": "timeout"}
+
+        def fake_docker(command, **kwargs):
+            observations.append(command[1])
+            if command[1] == "inspect":
+                if observations.count("inspect") == 1:
+                    name = "aiter-rs-gdr-" + hashlib.sha256(str(private).encode()).hexdigest()[:20] + "-public"
+                    label = hashlib.sha256(str(private).encode()).hexdigest()[:20]
+                    return CompletedProcess(command, 0, f"/{name} {label}\n", "")
+                return CompletedProcess(command, 1, "", "Error: No such object")
+            self.assertEqual(command, ["docker", "rm", "-f", cid])
+            return CompletedProcess(command, 0, cid + "\n", "")
+
+        with patch("runs.gdr_native_optimization.post_agent.run_limited", side_effect=fake_limited), patch(
+            "runs.gdr_native_optimization.post_agent.subprocess.run", side_effect=fake_docker
+        ):
+            result = _run_owned_container(["docker", "run", "--rm", "image"], "public", private,
+                                          self.root, 3)
+        self.assertEqual(result["status"], "timeout")
+        self.assertEqual(observations, ["timed_out", "inspect", "rm", "inspect"])
+
+    def test_owned_docker_mismatch_never_removes_container(self):
+        private = self.root / "owned"
+        private.mkdir(mode=0o700)
+
+        def fake_limited(command, cwd, stdout, stderr, wall):
+            Path(command[command.index("--cidfile") + 1]).write_text("b" * 64)
+            return {"status": "timeout"}
+
+        with patch("runs.gdr_native_optimization.post_agent.run_limited", side_effect=fake_limited), patch(
+            "runs.gdr_native_optimization.post_agent.subprocess.run",
+            return_value=CompletedProcess([], 0, "/unrelated-container wrong-label\n", ""),
+        ) as docker:
+            with self.assertRaisesRegex(RuntimeError, "different container"):
+                _run_owned_container(["docker", "run", "--rm", "image"], "public", private,
+                                     self.root, 3)
+            self.assertEqual(docker.call_count, 1)
+
     def test_aggregate_is_sanitized_and_records_failed_hidden_correctness(self):
         provenance = {
             "task": self.task, "run_id": self.run_id, "task_freeze_sha256": digest(canonical(self.freeze)),
@@ -196,11 +253,13 @@ class PostAgentTests(unittest.TestCase):
         )
         events = []
 
-        def fake_run(command, cwd, stdout, stderr, wall):
+        def fake_run(command, stage, private_root, cwd, wall):
+            stdout = private_root / f"{stage}.stdout.log"
+            stderr = private_root / f"{stage}.stderr.log"
             self.assertFalse(stdout.is_relative_to(self.workspace))
             self.assertFalse(stderr.is_relative_to(self.workspace))
-            events.append(command[0])
-            if command[0] == "public":
+            events.append(stage)
+            if stage == "public":
                 binary = output / "public/libcandidate.so"
                 binary.write_bytes(b"compiled candidate")
                 (output / "public/result.json").write_text(json.dumps({
@@ -219,12 +278,12 @@ class PostAgentTests(unittest.TestCase):
             "runs.gdr_native_optimization.post_agent.validate_private_inputs", return_value=4
         ), patch("runs.gdr_native_optimization.post_agent.public_container_command", return_value=["public"]), patch(
             "runs.gdr_native_optimization.post_agent.hidden_container_command", return_value=["hidden"]
-        ), patch("runs.gdr_native_optimization.post_agent.run_limited", side_effect=fake_run), patch(
+        ), patch("runs.gdr_native_optimization.post_agent._run_owned_container", side_effect=fake_run), patch(
             "runs.gdr_native_optimization.post_agent.aggregate_results",
             return_value={"schema": "fake-summary", "withheld_passed_count": 4},
         ):
             summary = replay(args)
-        self.assertEqual(events, ["public", "hidden"])
+        self.assertEqual(events, ["public", "withheld"])
         self.assertEqual(summary["withheld_passed_count"], 4)
         self.assertEqual(json.loads((output / "summary.json").read_text()), summary)
         self.assertFalse((self.workspace / "withheld.json").exists())
@@ -239,7 +298,7 @@ class PostAgentTests(unittest.TestCase):
             public_wall_seconds=10, hidden_wall_seconds=10,
         )
 
-        def fake_run(command, cwd, stdout, stderr, wall):
+        def fake_run(command, stage, private_root, cwd, wall):
             binary = output / "public/libcandidate.so"
             binary.write_bytes(b"compiled candidate")
             (output / "public/result.json").write_text(json.dumps({
@@ -252,7 +311,7 @@ class PostAgentTests(unittest.TestCase):
             "runs.gdr_native_optimization.post_agent.validate_private_inputs", return_value=4
         ), patch("runs.gdr_native_optimization.post_agent.public_container_command", return_value=["public"]), patch(
             "runs.gdr_native_optimization.post_agent.hidden_container_command"
-        ) as hidden_command, patch("runs.gdr_native_optimization.post_agent.run_limited", side_effect=fake_run):
+        ) as hidden_command, patch("runs.gdr_native_optimization.post_agent._run_owned_container", side_effect=fake_run):
             summary = replay(args)
             hidden_command.assert_not_called()
         self.assertEqual(summary["status"], "public_stage_failed")

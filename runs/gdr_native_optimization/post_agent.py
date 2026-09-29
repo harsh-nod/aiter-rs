@@ -8,9 +8,11 @@ native code: the candidate .so shares its process with the private manifest.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -47,6 +49,51 @@ def _write_summary(path: Path, summary: dict) -> dict:
         json.dump(summary, output, sort_keys=True, indent=2)
         output.write("\n")
     return summary
+
+
+def _owned_container_state(name: str, label: str, identifier: str) -> bool:
+    inspected = subprocess.run(
+        ["docker", "inspect", "--format", '{{.Name}} {{index .Config.Labels "aiter-rs.gdr-replay"}}', identifier],
+        capture_output=True, text=True, timeout=30, check=False,
+    )
+    if inspected.returncode != 0:
+        if "No such object" in inspected.stderr or "No such container" in inspected.stderr:
+            return False
+        raise RuntimeError("Docker inspect failed; owned container state is unknown")
+    if inspected.stdout.strip() != f"/{name} {label}":
+        raise RuntimeError("Docker identifier belongs to a different container; refusing cleanup")
+    return True
+
+
+def _run_owned_container(command: list[str], stage: str, private_root: Path, repo: Path,
+                         wall_seconds: int) -> dict:
+    if command[:2] != ["docker", "run"] or stage not in {"public", "withheld"}:
+        raise ValueError("expected a trusted Docker scorer stage")
+    label = hashlib.sha256(str(private_root).encode("utf-8")).hexdigest()[:20]
+    name = f"aiter-rs-gdr-{label}-{stage}"
+    cidfile = private_root / f"{stage}.cid"
+    if cidfile.exists():
+        raise ValueError("Docker CID file already exists")
+    owned = command[:2] + [
+        "--name", name, "--cidfile", str(cidfile),
+        "--label", f"aiter-rs.gdr-replay={label}",
+        "--user", f"{os.getuid()}:{os.getgid()}",
+        "-e", "HOME=/tmp", "-e", "XDG_CACHE_HOME=/tmp/.cache",
+    ] + command[2:]
+    try:
+        return run_limited(owned, repo, private_root / f"{stage}.stdout.log",
+                           private_root / f"{stage}.stderr.log", wall_seconds)
+    finally:
+        identifier = name
+        if cidfile.exists():
+            identifier = cidfile.read_text(encoding="ascii").strip()
+            if not re.fullmatch(r"[0-9a-f]{12,64}", identifier):
+                raise RuntimeError("owned Docker CID file is malformed; manual inspection required")
+        if _owned_container_state(name, label, identifier):
+            removed = subprocess.run(["docker", "rm", "-f", identifier],
+                                     capture_output=True, text=True, timeout=30, check=False)
+            if removed.returncode != 0 or _owned_container_state(name, label, identifier):
+                raise RuntimeError("owned scorer container could not be removed")
 
 
 def validate_capture(run_dir: Path, task_dir: Path = TASK_DIR) -> tuple[dict, dict, dict]:
@@ -334,8 +381,8 @@ def replay(args) -> dict:
         provenance["restored_source"], repo, aiter, public_dir, args.host_gpu_report,
         task, args.image, "benchmark",
     )
-    public_run = run_limited(public_command, repo, private_root / "public.stdout.log",
-                             private_root / "public.stderr.log", args.public_wall_seconds)
+    public_run = _run_owned_container(public_command, "public", private_root, repo,
+                                      args.public_wall_seconds)
     public_result_path = public_dir / "result.json"
     if public_run["status"] == "timeout" or not public_result_path.is_file():
         raise RuntimeError("public-only scorer did not complete; raw logs stay private")
@@ -387,8 +434,8 @@ def replay(args) -> dict:
         binary, repo, aiter, args.withheld_spec, args.host_gpu_report, hidden_dir,
         task, args.image,
     )
-    hidden_run = run_limited(hidden_command, repo, private_root / "withheld.stdout.log",
-                             private_root / "withheld.stderr.log", args.hidden_wall_seconds)
+    hidden_run = _run_owned_container(hidden_command, "withheld", private_root, repo,
+                                      args.hidden_wall_seconds)
     hidden_result_path = hidden_dir / "scorer/result.json"
     if hidden_run["status"] == "timeout" or not hidden_result_path.is_file():
         raise RuntimeError("withheld scorer did not complete; raw logs stay private")

@@ -36,6 +36,14 @@ after public-only compile/correctness/benchmark completes. The public scorer
 has no withheld mount. The second scorer reuses the exact public-stage `.so`;
 it does not benchmark hidden cases.
 
+Each Docker stage runs under the trusted host UID/GID, with a writable cache
+under `/tmp`, so private result files remain readable by the trusted adapter.
+Each stage also has a replay-specific name, label, and host CID file. The
+trusted adapter checks the ownership tuple and removes only that exact
+container if the Docker client times out or exits while the container remains.
+If Docker state cannot be verified, the replay stops and requires manual GPU
+PID/container inspection before another run.
+
 Keep the output tree private. It contains raw public/withheld JSON and process
 logs. `summary.json` and stdout contain only aggregate counts, public bucket
 ratios, pinned source/binary/result hashes, and explicit unscored flags. A
