@@ -38,6 +38,9 @@ it does not benchmark hidden cases.
 
 Each Docker stage runs under the trusted host UID/GID, with a writable cache
 under `/tmp`, so private result files remain readable by the trusted adapter.
+A minimal trusted passwd/group pair under the private replay directory is
+mounted read-only because the pinned image does not contain the host numeric
+UID; the host's full account database is not mounted.
 Each stage also has a replay-specific name, label, and host CID file. The
 trusted adapter checks the ownership tuple and removes only that exact
 container if the Docker client times out or exits while the container remains.

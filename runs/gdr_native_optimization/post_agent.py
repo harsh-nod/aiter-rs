@@ -65,6 +65,34 @@ def _owned_container_state(name: str, label: str, identifier: str) -> bool:
     return True
 
 
+def _nss_files(private_root: Path) -> tuple[Path, Path]:
+    uid, gid = os.getuid(), os.getgid()
+    contents = {
+        "container-passwd": (
+            "root:x:0:0:root:/root:/bin/sh\n"
+            "nobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin\n"
+            f"aiter-replay:x:{uid}:{gid}:aiter replay:/tmp:/bin/sh\n"
+        ),
+        "container-group": (
+            "root:x:0:\n"
+            "nogroup:x:65534:\n"
+            f"aiter-replay:x:{gid}:\n"
+        ),
+    }
+    for name, value in contents.items():
+        path = private_root / name
+        if path.is_symlink():
+            raise ValueError("container NSS file cannot be a symlink")
+        if path.exists():
+            if path.read_text(encoding="ascii") != value:
+                raise ValueError("container NSS file differs from trusted host identity")
+            continue
+        descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o400)
+        with os.fdopen(descriptor, "w", encoding="ascii") as output:
+            output.write(value)
+    return private_root / "container-passwd", private_root / "container-group"
+
+
 def _run_owned_container(command: list[str], stage: str, private_root: Path, repo: Path,
                          wall_seconds: int) -> dict:
     if command[:2] != ["docker", "run"] or stage not in {"public", "withheld"}:
@@ -74,11 +102,15 @@ def _run_owned_container(command: list[str], stage: str, private_root: Path, rep
     cidfile = private_root / f"{stage}.cid"
     if cidfile.exists():
         raise ValueError("Docker CID file already exists")
+    passwd, group = _nss_files(private_root)
     owned = command[:2] + [
         "--name", name, "--cidfile", str(cidfile),
         "--label", f"aiter-rs.gdr-replay={label}",
         "--user", f"{os.getuid()}:{os.getgid()}",
         "-e", "HOME=/tmp", "-e", "XDG_CACHE_HOME=/tmp/.cache",
+        "-e", "USER=aiter-replay", "-e", "LOGNAME=aiter-replay",
+        "--mount", f"type=bind,src={passwd},dst=/etc/passwd,readonly",
+        "--mount", f"type=bind,src={group},dst=/etc/group,readonly",
     ] + command[2:]
     try:
         return run_limited(owned, repo, private_root / f"{stage}.stdout.log",

@@ -19,6 +19,7 @@ from runs.gdr_native_optimization.post_agent import (
     hidden_container_command,
     prepare_snapshot,
     replay,
+    _nss_files,
     _run_owned_container,
     validate_capture,
     validate_private_inputs,
@@ -157,6 +158,9 @@ class PostAgentTests(unittest.TestCase):
             self.assertEqual(command[command.index("--user") + 1], f"{os.getuid()}:{os.getgid()}")
             self.assertIn("HOME=/tmp", command)
             self.assertIn("XDG_CACHE_HOME=/tmp/.cache", command)
+            self.assertIn("USER=aiter-replay", command)
+            self.assertTrue(any("dst=/etc/passwd,readonly" in item for item in command))
+            self.assertTrue(any("dst=/etc/group,readonly" in item for item in command))
             Path(command[command.index("--cidfile") + 1]).write_text(cid + "\n")
             observations.append("timed_out")
             return {"status": "timeout"}
@@ -196,6 +200,18 @@ class PostAgentTests(unittest.TestCase):
                 _run_owned_container(["docker", "run", "--rm", "image"], "public", private,
                                      self.root, 3)
             self.assertEqual(docker.call_count, 1)
+
+    def test_minimal_nss_files_pin_host_identity_and_reject_tamper(self):
+        private = self.root / "owned"
+        private.mkdir(mode=0o700)
+        passwd, group = _nss_files(private)
+        self.assertIn(f"aiter-replay:x:{os.getuid()}:{os.getgid()}:", passwd.read_text())
+        self.assertIn(f"aiter-replay:x:{os.getgid()}:", group.read_text())
+        self.assertEqual(_nss_files(private), (passwd, group))
+        passwd.chmod(0o600)
+        passwd.write_text("attacker:x:1:1::/tmp:/bin/sh\n")
+        with self.assertRaisesRegex(ValueError, "NSS file differs"):
+            _nss_files(private)
 
     def test_aggregate_is_sanitized_and_records_failed_hidden_correctness(self):
         provenance = {
