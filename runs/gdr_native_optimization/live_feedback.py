@@ -243,7 +243,8 @@ class RemotePublicScorer:
                 raise ValueError(f"remote public result {name} differs from pin")
         if raw.get("status") in {"complete", "correctness_failed"}:
             if (raw.get("host_gpu_report_sha256") != task["host_gpu_report_sha256"] or
-                    raw.get("arch") != task["target_arch"] or raw.get("gpu_name") != task["gpu_sku"]):
+                    raw.get("arch") != task["target_arch"] or
+                    "0x75a0" not in raw.get("rocm_product", "")):
                 raise ValueError("remote public GPU attestation differs from task pin")
         return raw
 

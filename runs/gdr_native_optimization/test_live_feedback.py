@@ -220,7 +220,7 @@ class LiveFeedbackTests(unittest.TestCase):
             "public_spec_sha256": self.task["harness_spec_sha256"],
             "large_fixture_sha256": self.task["large_fixture_sha256"],
             "host_gpu_report_sha256": self.task["host_gpu_report_sha256"],
-            "arch": self.task["target_arch"], "gpu_name": self.task["gpu_sku"],
+            "arch": self.task["target_arch"], "gpu_name": "", "rocm_product": "Card Model: 0x75a0",
             **public_result("correctness", self.contract),
         }
         raw.pop("private_note")
@@ -261,6 +261,18 @@ class LiveFeedbackTests(unittest.TestCase):
         ):
             scorer = RemotePublicScorer(config, bad_private, "bad-run")
             with self.assertRaisesRegex(ValueError, "source_sha256 differs"):
+                scorer(snapshot, "correctness")
+
+        bad_gpu_private = self.root / "bad-gpu-private"
+        bad_gpu_private.mkdir()
+        raw["source_sha256"] = sha256(snapshot / "kernel.hip")
+        raw["rocm_product"] = "Card Model: 0x0000"
+        remote_raw.write_text(json.dumps(raw))
+        with patch.object(RemotePublicScorer, "_remote", remote), patch(
+            "runs.gdr_native_optimization.live_feedback.subprocess.run", side_effect=scp
+        ):
+            scorer = RemotePublicScorer(config, bad_gpu_private, "bad-gpu-run")
+            with self.assertRaisesRegex(ValueError, "GPU attestation differs"):
                 scorer(snapshot, "correctness")
 
 
