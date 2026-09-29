@@ -1,5 +1,13 @@
 # Quant r001: three unchanged performance replays
 
+**Methodology correction (2026-09-29):** a
+[GPU-event host-gap control](2026-09-29-event-timing-host-gap.md) showed that
+these short-kernel event intervals can include Python launch/dispatch time.
+AITER's wrapper and the HIP candidate ABI have different host paths. The
+ratios below are preserved as originally scored stream-interval results, but
+they do **not** establish device-kernel performance parity; type-level parity
+admission remains blocked pending a controlled graph/profiler comparison.
+
 The submitted source is the immutable [r001 agent snapshot](agent-trials/quant-mxfp4-even-r001/README.md),
 tree SHA256 `26d06c1b17d9fd353060e365fb472668cb994893094ba0e7cf07bf9b02c67382`.
 The trusted `libcandidate.so` had raw SHA256

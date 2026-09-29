@@ -26,4 +26,8 @@ and a frozen task contract must still be established.
 The [first two gfx950 runs](../results/2026-09-29-gdr-performance-feasibility.md)
 passed public correctness and showed a roughly 0.52-0.54 HIP/AITER latency
 ratio, but one unchanged replay failed the frozen 5% MAD qualification. The
-result remains a feasibility signal, not scored performance parity.
+result remains a feasibility signal, not scored performance parity. A later
+[host-gap control](../results/2026-09-29-event-timing-host-gap.md) showed that
+the event intervals can also include unequal AITER-wrapper versus candidate
+ABI CPU enqueue time. The apparent speed margin is not a device-kernel parity
+result, even in the noise-qualified replay.

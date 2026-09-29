@@ -1,5 +1,13 @@
 # GDR HIP pilot: unscored performance feasibility
 
+**Methodology correction:** the
+[2026-09-29 host-gap control](2026-09-29-event-timing-host-gap.md) proves that
+the event interval can include host enqueue delay. AITER's Python wrapper
+and the candidate's direct HIP ABI are unequal launch paths; the apparent
+speed margin below may be dominated by that difference. These measurements
+cannot qualify device-kernel performance parity. A graph-replay or profiler
+control is required before treating this as a credible HIP speed route.
+
 Two unchanged runs of the [predeclared timing probe](../harness/GDR_FEASIBILITY.md)
 compared the existing unscored GDR pilot binary (SHA256
 `3b7ed6d207f441c7a337279ff916ca80950eac81c2ef56f963284cb58407f60d`)
