@@ -17,6 +17,9 @@ be scored separately from verified source snapshots on the same MI350X.
 `scored_eligible=true` authorizes an independent trial capture; it is not a
 claim that any submission has passed. GPU contention blocked timing on
 September 25; [uncontended r001 replays](../../../results/2026-09-28-quant-r001-performance-replays.md)
-later produced two joint passes and one noise-gate failure for the same
-submission. Do not count those measurements as independent agent trials or
-as stable type-level parity admission.
+later produced two passes under the original event-only score rule and one
+noise-gate failure for the same submission. The later
+[graph control](../../../references/quant_mxfp4_graph_control.md) found r001
+slower than AITER on both public buckets; the old event-only results do not
+establish device-performance parity. None of these replays is an additional
+agent trial or stable type-level parity admission.
