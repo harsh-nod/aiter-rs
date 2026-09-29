@@ -49,3 +49,8 @@ results, JIT artifacts, and profiler data stay off-repo. No latency is
 measured. Before any later parity study, verify the same exact-kid branch
 and whole callable boundary in graph/profiler timings under noise controls;
 source visibility alone does not establish standalone HIP parity.
+
+The later [source-equivalent adapter control](FEASIBILITY.md) checks an
+independent HIP shared-library build against this exact-kid boundary using
+guarded correctness and paired graph replay. It also documents the stricter
+single-header clean-JIT overlay route for future agent optimization tasks.
