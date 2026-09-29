@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "task_id": "gfx950.gdr_decode_packed_bf16.stateful.v1",
+  "aiter_sha": "868ccf62a0bcad3aa47f92728340ccb37ed4fb39",
+  "gpu_sku": "AMD Instinct MI350X",
+  "gpu_pci_device_id": "0x75a0",
+  "target_arch": "gfx950",
+  "plugin": "references.gdr_decode_packed_bf16",
+  "withheld_cases_sha256": "4bb61ab49dab61bff62e124cc5554ec92af3a846f41341f77229f58e38e5c9d0",
+  "threshold_ratio": 1.05,
+  "max_mad_ratio": 0.05,
+  "benchmark_case_ids": [],
+  "cases": [
+    {"id": "valid_slots", "visibility": "visible", "batch": 4, "pool": 7, "steps": 1, "seed": 260901, "indices": [5, 0, 6, 2], "state_slot_padding": true},
+    {"id": "invalid_sentinels", "visibility": "visible", "batch": 4, "pool": 3, "steps": 1, "seed": 260902, "indices": [-1, 3, 17, 2147483647]},
+    {"id": "strided_mixed", "visibility": "visible", "batch": 6, "pool": 7, "steps": 1, "seed": 260903, "indices": [0, -1, 7, 4, 2147483647, 6], "strided_rows": true, "indices_stride": 2, "state_slot_padding": true},
+    {"id": "repeated_state", "visibility": "visible", "batch": 4, "pool": 6, "steps": 4, "seed": 260904, "indices": [5, 0, 3, 1], "state_slot_padding": true}
+  ]
+}

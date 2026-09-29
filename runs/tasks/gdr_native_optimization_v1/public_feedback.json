@@ -1,0 +1,38 @@
+{
+  "schema": "aiter-rs-gdr-opt-public-feedback-v1",
+  "aiter_sha": "868ccf62a0bcad3aa47f92728340ccb37ed4fb39",
+  "public_spec_sha256": "fb5fdbfd031fa3d9fbf64a716b067b260d63ef29911e468e98a8279301a53145",
+  "large_fixture_sha256": "10c53ca20475142a87cc515e917194ad07047bc54ef0dd8ca6e665038b023c0b",
+  "visible_correctness_case_ids": [
+    "valid_slots",
+    "invalid_sentinels",
+    "strided_mixed",
+    "repeated_state",
+    "large_valid_slots_candidate"
+  ],
+  "benchmark_case_ids": [
+    "valid_slots",
+    "strided_mixed",
+    "large_valid_slots_candidate"
+  ],
+  "benchmark_protocol": {
+    "captured_calls": 32,
+    "direct_warmups": 5,
+    "graph_warmups": 5,
+    "alternating_pairs": 20,
+    "max_latency_ratio_each": 1.05,
+    "max_relative_mad_each_side": 0.05,
+    "proposed_geomean_improvement_ratio": 0.95
+  },
+  "max_feedback_requests": 3,
+  "response_fields": [
+    "schema",
+    "request_id",
+    "source_sha256",
+    "status",
+    "visible_case_results",
+    "benchmark_bucket_results",
+    "raw_result_sha256"
+  ],
+  "activation": "not_wired_no_agent_launch"
+}
