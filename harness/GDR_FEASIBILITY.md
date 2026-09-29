@@ -22,3 +22,8 @@ that implementation as a vetted HIP starting point; it does not prove that
 no HIP kernel can reach AITER's speed. A fast result does not admit a scored
 task either: hidden tests, repeated-state timing buckets, candidate sandbox
 and a frozen task contract must still be established.
+
+The [first two gfx950 runs](../results/2026-09-29-gdr-performance-feasibility.md)
+passed public correctness and showed a roughly 0.52-0.54 HIP/AITER latency
+ratio, but one unchanged replay failed the frozen 5% MAD qualification. The
+result remains a feasibility signal, not scored performance parity.
