@@ -54,3 +54,6 @@ The later [source-equivalent adapter control](FEASIBILITY.md) checks an
 independent HIP shared-library build against this exact-kid boundary using
 guarded correctness and paired graph replay. It also documents the stricter
 single-header clean-JIT overlay route for future agent optimization tasks.
+An expanded [adversarial public matrix](ADVERSARIAL_FREEZE_DRAFT.md) is an
+offline freeze candidate only; its [pending receipt](ADVERSARIAL_ADMISSION_PENDING.md)
+keeps the six new GPU cases explicitly unadmitted.
