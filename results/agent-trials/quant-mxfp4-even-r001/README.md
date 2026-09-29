@@ -23,7 +23,10 @@ measurements.
   latency/noise rule; one failed the medium-bucket noise gate. The later
   [host-gap control](../../2026-09-29-event-timing-host-gap.md) shows those
   ratios cannot establish device-kernel parity. A revised timing protocol is
-  required before any performance admission; this is not an agent-error rate.
+  required before any performance admission. The later
+  [graph control](../../../references/quant_mxfp4_graph_control.md) found r001
+  slower than AITER in both public timing buckets; this is not an agent-error
+  rate.
 - Raw evidence here: `events.jsonl`, `snapshots.jsonl`, `blobs/`, `diffs/`,
   `manifest.json`, `prompt.txt`, and `result.json`. Private case inputs and
   raw scorer output are not included.

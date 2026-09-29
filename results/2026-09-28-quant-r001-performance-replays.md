@@ -7,6 +7,10 @@ AITER's wrapper and the HIP candidate ABI have different host paths. The
 ratios below are preserved as originally scored stream-interval results, but
 they do **not** establish device-kernel performance parity; type-level parity
 admission remains blocked pending a controlled graph/profiler comparison.
+The later [32-call graph control](../references/quant_mxfp4_graph_control.md)
+found the same r001 binary 1.35x and 1.96x slower than AITER in the two
+public benchmark buckets, so the event-only apparent speedup did not survive
+the corrected device-work measurement.
 
 The submitted source is the immutable [r001 agent snapshot](agent-trials/quant-mxfp4-even-r001/README.md),
 tree SHA256 `26d06c1b17d9fd353060e365fb472668cb994893094ba0e7cf07bf9b02c67382`.
