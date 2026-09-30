@@ -46,7 +46,7 @@ contain commitments and sanitized aggregates.
 
 | Track | Current evidence | Admission status |
 | --- | --- | --- |
-| GDR decode | Naive HIP passed public correctness but was 5.76-5.85x slower under repeatable graph replay. A source-preserving AITER-derived HIP ABI seed passed 8/8 public+withheld correctness. [Profiler and stability controls](../tasks/gdr_native_optimization/PROFILER_STABILITY_RECEIPT.md) confirmed one same-symbol, same-geometry dispatch per side in three public buckets and two fresh graph sessions within 5% of AITER. The [public-only live-broker seed smoke](2026-09-29-gdr-live-feedback-admission.md) passed 6/6 visible checks, and one real live-feedback agent preview completed with separate public and withheld replay. | Credible HIP parity seed; three exploratory no-feedback and one live-feedback agent preview. The broker works for the bounded public loop, but its v2 task is deliberately unscored. A new scored freeze and review of same-process hidden-scorer confidentiality remain. The seed is an answer key for optimization, not blind from-spec trials. |
+| GDR decode | Naive HIP passed public correctness but was 5.76-5.85x slower under repeatable graph replay. A source-preserving AITER-derived HIP ABI seed passed 8/8 public+withheld correctness. [Profiler and stability controls](../tasks/gdr_native_optimization/PROFILER_STABILITY_RECEIPT.md) confirmed one same-symbol, same-geometry dispatch per side in three public buckets and two fresh graph sessions within 5% of AITER. The [public-only live-broker seed smoke](2026-09-29-gdr-live-feedback-admission.md) passed 6/6 visible checks, and one real live-feedback agent preview completed with separate public and withheld replay. | Credible HIP parity seed; three exploratory no-feedback and one live-feedback agent preview. The [v3 scored-protocol candidate](../runs/tasks/gdr_native_optimization_v3/README.md) now freezes the live task and nonadversarial same-process hidden-scorer limitation, with all launched sessions in the denominator. Its admission receipt is intentionally absent: exact-v3 public and withheld GPU smoke and review are still required before any scored agent launch. The seed is an answer key for optimization, not blind from-spec trials. |
 | MHC fused post/pre | Guarded analyst HIP passed 9/9 cases, but graph replay was 20-106x slower than AITER. | No credible HIP parity seed; unscored. |
 | Sparse prefill | Analyst HIP passed 5 public and 4 withheld correctness cases. Read-only post-graph verification passed, but two public graph buckets were 9.97x and 11.86x slower. | No credible HIP parity seed; unscored. |
 | OPUS persistent A16W16 GEMM | Three original exact-kid cases passed the independent Torch oracle and the [source-equivalent standalone HIP adapter](../tasks/opus_a16w16_persistent/FEASIBILITY.md). Eight full-K public cases passed guarded correctness and two independent [graph-control sessions](../tasks/opus_a16w16_persistent/scored_candidate/SECOND_SESSION.md), with second-session adapter/AITER ratios 0.97739-1.01087. An unchanged-header [production `opus_bmm` one-case control](../tasks/opus_a16w16_persistent/scored_candidate/PRODUCTION_SEED_SMOKE.md) passed independent six-step oracle/guards, exact persistent dispatch, and paired graph timing at 0.983445 candidate/AITER. The [draft task](../tasks/opus_a16w16_persistent/scored_candidate/README.md) freezes eight full-K public cases and a committed off-repo twelve-case withheld matrix. [Batch attempt 002](../tasks/opus_a16w16_persistent/scored_candidate/PRODUCTION_BATCH_INTERRUPTION.md) has only two observed public passes; its later results and exit status became unreachable. Partial-K remains excluded after the AITER-only [padding-dependent defect](../tasks/opus_a16w16_persistent/K_TAIL_REPRO.md) filed as [ROCm/aiter #5954](https://github.com/ROCm/aiter/issues/5954). | Plausible source-preserving route for the eight full-K cases only. Neither the one-case control nor the two observed batch-prefix passes establish all-eight parity. Reconcile the remote batch before further OPUS admission; `scored_eligible=false`, zero OPUS agent trajectories. |
@@ -71,10 +71,16 @@ task. The
 configuration hints, not 10,000 distinct vetted HIP challenge types. Do not
 inflate type count with shape rows, repeated attempts, or AITER-only audits.
 
-Next: freeze a new scored GDR revision only after reviewing the live-broker
-preview, the exact environment, and the nonadversarial native hidden-scoring
-threat model; all four GDR exploratory captures remain outside the incidence
-denominator. For megakernels, complete the staged eight-public/twelve-withheld
+Next: run and review exact-v3 GDR public and withheld GPU smoke, then commit
+the separately gated admission receipt before any scored agent launch. The
+integrated v3 CPU protocol tests pass 33/33, but no v3 GPU or agent run has
+occurred. Access to `mi350-2` currently fails at hostname resolution. All
+four earlier GDR exploratory captures remain outside the incidence
+denominator. Add a final per-run adjudication row before estimating rates:
+agent-introduced, AITER baseline, harness/environment, unsupported, or
+unresolved, with diff/reproducer hashes, functionality and performance
+outcomes, and an explicit cohort-inclusion decision. For megakernels,
+complete the staged eight-public/twelve-withheld
 production-overlay gate before any scored OPUS attempt. The standalone adapter
 is only a source-equivalent control, and the single production bucket is not
 an all-case parity result.
