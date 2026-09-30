@@ -323,6 +323,19 @@ agent-induced regressions and AITER audit findings, resolving disagreements
 from the trace or minimal repro. Both corpora use the same vocabulary but
 remain separate, with unknown agent attribution for upstream findings.
 
+Before calculating any incidence rate, write one final adjudication record
+per independent launched run. It must pin the task/run and final-source hashes,
+capture and trusted-replay status, oracle and per-bucket benchmark outcomes,
+the evidence for any source-level causal claim, origin (`agent-introduced`,
+`AITER baseline`, `harness/environment`, `unsupported`, or `unresolved`), and
+an explicit cohort-inclusion decision with reason. A capture's
+`incidence_eligible=true` means it was launched under a scored protocol; it
+does **not** by itself admit a causal error label, establish performance parity,
+or override a replay summary marked pending. Preserve launched timeouts and
+ambiguous outcomes in the attempted-run denominator and report unresolved
+status separately rather than silently dropping or blaming them. Keep
+correct-but-slow results separate from wrong answers.
+
 ## Agent-first prioritization
 
 Report first-candidate and final functionality parity; invalid candidates per
