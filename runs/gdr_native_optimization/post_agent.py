@@ -19,6 +19,7 @@ from pathlib import Path
 
 from runs.gdr_native_optimization.boundary import (
     LIVE_TASK_DIR,
+    SCORED_TASK_DIR,
     TASK_DIR,
     canonical,
     public_container_command,
@@ -31,6 +32,7 @@ from runs.runner import digest, export_snapshot, freeze_payload, run_limited
 
 SNAPSHOT_FILES = {"kernel.hip", "gdr_decode_packed_bf16_abi.h"}
 SUMMARY_SCHEMA = "aiter-rs-gdr-opt-post-agent-summary-v1"
+SCORED_SUMMARY_SCHEMA = "aiter-rs-gdr-opt-scored-post-agent-summary-v1"
 
 
 def _read(path: Path) -> dict:
@@ -130,25 +132,73 @@ def _run_owned_container(command: list[str], stage: str, private_root: Path, rep
                 raise RuntimeError("owned scorer container could not be removed")
 
 
+def capture_incidence_record(run_dir: Path, task_dir: Path = SCORED_TASK_DIR) -> dict:
+    """Count launched v3 sessions even if a scorer cannot replay their capture."""
+    if task_dir.resolve() != SCORED_TASK_DIR:
+        raise ValueError("incidence records are defined for the scored v3 revision")
+    validate_task(task_dir)
+    manifest = _read(run_dir / "manifest.json")
+    freeze = freeze_payload(task_dir / "task.json")
+    freeze_sha = digest(canonical(freeze))
+    if (manifest.get("schema") != "aiter-rs-agent-run-v1" or
+            manifest.get("run_purpose") != "scored_trial_capture" or
+            manifest.get("incidence_eligible") is not True or
+            manifest.get("task_freeze") != freeze or
+            manifest.get("task_freeze_sha256") != freeze_sha):
+        raise ValueError("v3 capture manifest differs from frozen scored protocol")
+    launch_path = run_dir / "agent-launch.json"
+    if not launch_path.is_file():
+        return {
+            "run_id": manifest["run_id"], "launched": False,
+            "incidence_eligible": False, "capture_status": "prelaunch_incomplete",
+            "replay_eligible": False,
+        }
+    launch = _read(launch_path)
+    if (launch.get("schema") != "aiter-rs-agent-launch-v1" or
+            launch.get("run_id") != manifest["run_id"] or
+            launch.get("task_freeze_sha256") != freeze_sha or
+            type(launch.get("agent_pid")) is not int or launch["agent_pid"] <= 0):
+        raise ValueError("agent launch receipt differs from frozen v3 run")
+    result_path = run_dir / "result.json"
+    result = _read(result_path) if result_path.is_file() else None
+    if result is not None and result.get("incidence_eligible") is not True:
+        raise ValueError("launched v3 result incorrectly excludes incidence")
+    status = result.get("status", "unknown") if result is not None else "interrupted"
+    return {
+        "run_id": manifest["run_id"], "launched": True,
+        "incidence_eligible": True, "capture_status": status,
+        "replay_eligible": bool(result and status == "completed" and
+                                result.get("agent_exit_code") == 0 and
+                                not result.get("snapshot_errors")),
+    }
+
+
 def validate_capture(run_dir: Path, task_dir: Path = TASK_DIR) -> tuple[dict, dict, dict]:
     task, _ = validate_task(task_dir)
+    scored = task_dir.resolve() == SCORED_TASK_DIR
+    if scored and not capture_incidence_record(run_dir, task_dir)["launched"]:
+        raise ValueError("scored capture has no agent launch receipt")
     manifest = _read(run_dir / "manifest.json")
     result = _read(run_dir / "result.json")
     freeze = freeze_payload(task_dir / "task.json")
-    purpose = ("unscored_feedback_preview" if task_dir.resolve() == LIVE_TASK_DIR else "unscored_preview")
+    purpose = ("scored_trial_capture" if scored else
+               "unscored_feedback_preview" if task_dir.resolve() == LIVE_TASK_DIR else
+               "unscored_preview")
     if manifest.get("schema") != "aiter-rs-agent-run-v1" or manifest.get("run_purpose") != purpose:
-        raise ValueError("capture is not an unscored agent preview")
-    if manifest.get("incidence_eligible") is not False or result.get("incidence_eligible") is not False:
-        raise ValueError("capture claims incidence eligibility")
+        raise ValueError("capture purpose differs from frozen task revision")
+    if manifest.get("incidence_eligible") is not scored or result.get("incidence_eligible") is not scored:
+        raise ValueError("capture incidence eligibility differs from task revision")
     if manifest.get("task_freeze") != freeze or manifest.get("task_freeze_sha256") != digest(canonical(freeze)):
         raise ValueError("capture task freeze differs from pinned task")
     if result.get("status") != "completed" or result.get("snapshot_errors"):
         raise ValueError("agent capture did not finish cleanly")
     if result.get("agent_exit_code") != 0 or result.get("scored") is not False:
         raise ValueError("capture exit or scoring status is inconsistent")
-    if purpose == "unscored_feedback_preview":
+    if purpose in {"unscored_feedback_preview", "scored_trial_capture"}:
         feedback = result.get("feedback", {})
-        if (feedback.get("status") != "complete" or feedback.get("request_limit") != 3 or
+        accepted_statuses = ({"complete", "protocol_error", "candidate_timeout_or_environment_ambiguous"}
+                             if scored else {"complete"})
+        if (feedback.get("status") not in accepted_statuses or feedback.get("request_limit") != 3 or
                 not 0 <= feedback.get("request_count", -1) <= 3):
             raise ValueError("live public feedback capture has an incomplete broker record")
     expected_prefix = task["task_id"] + "--" + task["task_revision"] + "--"
@@ -210,6 +260,7 @@ def prepare_snapshot(run_dir: Path, task_dir: Path, private_root: Path) -> dict:
         "final_tree_sha256": final["tree_sha256"],
         "source_sha256": restored_hashes["kernel.hip"],
         "restored_source": restored,
+        "capture_feedback_status": _read(run_dir / "result.json").get("feedback", {}).get("status"),
     }
 
 
@@ -254,7 +305,7 @@ def validate_checkouts(repo: Path, aiter: Path, task: dict, task_dir: Path = TAS
         raise ValueError("AITER source is dirty")
     if git(repo, "diff", "--name-only", task["harness_revision"], "HEAD", "--", "harness", "references"):
         raise ValueError("trusted harness differs from task revision")
-    if task_dir.resolve() == LIVE_TASK_DIR and git(
+    if task_dir.resolve() in {LIVE_TASK_DIR, SCORED_TASK_DIR} and git(
         repo, "diff", "--name-only", task["harness_revision"], "HEAD", "--",
         "runs/runner.py", "runs/gdr_native_optimization",
     ):
@@ -285,7 +336,8 @@ def hidden_container_command(binary: Path, repo: Path, aiter: Path, withheld: Pa
     if task_dir is None:
         task_dir = repo / "runs/tasks/gdr_native_optimization_v1"
     task_dir = task_dir.resolve()
-    if task_dir not in {repo / "runs/tasks/gdr_native_optimization_v1", repo / "runs/tasks/gdr_native_optimization_v2"}:
+    if task_dir not in {repo / "runs/tasks/gdr_native_optimization_v1", repo / "runs/tasks/gdr_native_optimization_v2",
+                        repo / "runs/tasks/gdr_native_optimization_v3"}:
         raise ValueError("hidden scorer task is not an admitted trusted revision")
     mounts = (
         (binary, "/workspace/candidate/libcandidate.so", True),
@@ -385,7 +437,7 @@ def aggregate_results(public: dict, hidden: dict, provenance: dict, hidden_case_
     if any(type(value.get("pass")) is not bool or not isinstance(value.get("ratio"), (int, float)) or
            not math.isfinite(value["ratio"]) or value["ratio"] <= 0 for value in buckets.values()):
         raise ValueError("public performance bucket has invalid result")
-    return {
+    summary = {
         "schema": SUMMARY_SCHEMA,
         "status": "exploratory_replay_complete",
         "scored_eligible": False,
@@ -413,6 +465,32 @@ def aggregate_results(public: dict, hidden: dict, provenance: dict, hidden_case_
         ),
         "hidden_same_process_confidentiality_guarantee": False,
     }
+    if provenance["task"]["scored_eligible"] is True:
+        scored_buckets = public.get("raw_performance", {}).get("buckets", {})
+        qualified = set(scored_buckets) == set(buckets) and all(
+            entry.get("noise_qualified") is True for entry in scored_buckets.values()
+        )
+        score_valid = qualified and hidden_status != "baseline_invalid"
+        correctness_pass = hidden_status == "pass" and all(entry.get("pass") is True for entry in entries)
+        parity_pass = correctness_pass and all(value["pass"] is True for value in buckets.values())
+        summary.update({
+            "schema": SCORED_SUMMARY_SCHEMA,
+            "status": "scored_replay_complete" if score_valid else "infrastructure_invalid",
+            "candidate_kind": "agent_trial",
+            "scored_eligible": True,
+            "incidence_eligible": True,
+            "score_valid": score_valid,
+            "retry_required": not score_valid,
+            "capture_feedback_status": provenance.get("capture_feedback_status"),
+            "public_noise_qualified": qualified,
+            "joint_parity_pass": parity_pass if score_valid else None,
+            "public_noninferiority_pass": (all(value["pass"] is True for value in buckets.values())
+                                            if score_valid else None),
+            "proposed_improvement_pass": (parity_pass and public.get("proposed_geomean_ratio", 1e9) <= 0.95
+                                          if score_valid else None),
+            "agent_parity_claim": parity_pass if score_valid else False,
+        })
+    return summary
 
 
 def replay(args) -> dict:
@@ -420,7 +498,8 @@ def replay(args) -> dict:
         path.resolve() for path in (args.run_dir, args.task_dir, args.repo, args.aiter_source, args.output)
     )
     private_root = _private_path(private_root, run_dir, repo, aiter)
-    if task_dir not in {repo / "runs/tasks/gdr_native_optimization_v1", repo / "runs/tasks/gdr_native_optimization_v2"}:
+    if task_dir not in {repo / "runs/tasks/gdr_native_optimization_v1", repo / "runs/tasks/gdr_native_optimization_v2",
+                        repo / "runs/tasks/gdr_native_optimization_v3"}:
         raise ValueError("task directory must be the pinned trusted checkout task")
     task, _ = validate_task(task_dir)
     validate_checkouts(repo, aiter, task, task_dir)
@@ -437,11 +516,35 @@ def replay(args) -> dict:
                                       args.public_wall_seconds)
     public_result_path = public_dir / "result.json"
     if public_run["status"] == "timeout" or not public_result_path.is_file():
+        if task["scored_eligible"] is True:
+            return _write_summary(private_root / "summary.json", {
+                "schema": SCORED_SUMMARY_SCHEMA,
+                "status": "candidate_timeout_or_environment_ambiguous",
+                "reason": "public_timeout" if public_run["status"] == "timeout" else "public_missing_result",
+                "candidate_kind": "agent_trial",
+                "scored_eligible": True,
+                "incidence_eligible": True,
+                "score_valid": False,
+                "retry_required": None,
+                "adjudication_required": True,
+                "capture_feedback_status": provenance.get("capture_feedback_status"),
+                "joint_parity_pass": None,
+                "proposed_improvement_pass": None,
+                "run_id": provenance["run_id"],
+                "task_freeze_sha256": provenance["task_freeze_sha256"],
+                "final_tree_sha256": provenance["final_tree_sha256"],
+                "source_sha256": provenance["source_sha256"],
+                "withheld_evaluated": False,
+            })
         raise RuntimeError("public-only scorer did not complete; raw logs stay private")
     public = _read(public_result_path)
     public_raw_sha = sha256(public_result_path)
     public_status = public.get("status")
-    if public_status in {"compile_failed", "correctness_failed", "environment_invalid", "setup_error"}:
+    if public_status in {
+        "compile_failed", "correctness_failed", "candidate_load_failed",
+        "candidate_timeout_or_environment_ambiguous", "candidate_load_or_environment_ambiguous",
+        "environment_invalid", "setup_error",
+    }:
         if public_run["status"] != "failed":
             raise RuntimeError("public scorer exit status contradicts its failure result")
         visible = public.get("visible_case_results", {})
@@ -450,7 +553,19 @@ def replay(args) -> dict:
             type(value) is not bool for value in visible.values()
         ):
             raise ValueError("public failure returned invalid visible case data")
-        return _write_summary(private_root / "summary.json", {
+        scored = task["scored_eligible"] is True
+        infrastructure = public_status == "environment_invalid"
+        ambiguous = public_status in {
+            "candidate_timeout_or_environment_ambiguous", "candidate_load_or_environment_ambiguous",
+            "setup_error",
+        }
+        if scored and public_status not in {"environment_invalid", "setup_error"}:
+            if (public.get("source_sha256") != provenance["source_sha256"] or
+                    public.get("aiter_sha") != task["aiter_sha"] or
+                    public.get("public_spec_sha256") != task["harness_spec_sha256"] or
+                    public.get("compiler_hipcc_sha256") != task["compiler_hipcc_sha256"]):
+                raise ValueError("public failure provenance differs from frozen scored candidate")
+        summary = {
             "schema": SUMMARY_SCHEMA,
             "status": "public_stage_failed",
             "public_stage_status": public_status,
@@ -469,7 +584,26 @@ def replay(args) -> dict:
             "visible_case_count": len(visible),
             "withheld_evaluated": False,
             "hidden_same_process_confidentiality_guarantee": False,
-        })
+        }
+        if scored:
+            summary.update({
+                "schema": SCORED_SUMMARY_SCHEMA,
+                "status": ("infrastructure_invalid" if infrastructure else
+                           "candidate_timeout_or_environment_ambiguous"
+                           if public_status == "candidate_timeout_or_environment_ambiguous" else
+                           "candidate_or_environment_ambiguous" if ambiguous else
+                           "scored_public_failure"),
+                "candidate_kind": "agent_trial",
+                "scored_eligible": True,
+                "incidence_eligible": True,
+                "score_valid": not infrastructure and not ambiguous,
+                "retry_required": True if infrastructure else None if ambiguous else False,
+                "adjudication_required": ambiguous,
+                "capture_feedback_status": provenance.get("capture_feedback_status"),
+                "joint_parity_pass": None if infrastructure or ambiguous else False,
+                "proposed_improvement_pass": None if infrastructure or ambiguous else False,
+            })
+        return _write_summary(private_root / "summary.json", summary)
     if public_run["status"] != "completed" or public_status != "complete":
         raise RuntimeError("public scorer exit status contradicts its result")
     binary = public_dir / "libcandidate.so"
@@ -490,9 +624,54 @@ def replay(args) -> dict:
                                       args.hidden_wall_seconds)
     hidden_result_path = hidden_dir / "scorer/result.json"
     if hidden_run["status"] == "timeout" or not hidden_result_path.is_file():
+        if task["scored_eligible"] is True:
+            return _write_summary(private_root / "summary.json", {
+                "schema": SCORED_SUMMARY_SCHEMA,
+                "status": "candidate_timeout_or_environment_ambiguous",
+                "reason": "withheld_timeout" if hidden_run["status"] == "timeout" else "withheld_missing_result",
+                "candidate_kind": "agent_trial",
+                "scored_eligible": True,
+                "incidence_eligible": True,
+                "score_valid": False,
+                "retry_required": None,
+                "adjudication_required": True,
+                "capture_feedback_status": provenance.get("capture_feedback_status"),
+                "joint_parity_pass": None,
+                "proposed_improvement_pass": None,
+                "run_id": provenance["run_id"],
+                "task_freeze_sha256": provenance["task_freeze_sha256"],
+                "final_tree_sha256": provenance["final_tree_sha256"],
+                "source_sha256": provenance["source_sha256"],
+                "binary_sha256": sha256(binary),
+                "public_raw_result_sha256": public_raw_sha,
+                "withheld_evaluated": False,
+            })
         raise RuntimeError("withheld scorer did not complete; raw logs stay private")
     hidden_result = _read(hidden_result_path)
     hidden_status = hidden_result.get("correctness", {}).get("status")
+    if task["scored_eligible"] is True and hidden_status not in {"pass", "fail", "baseline_invalid"}:
+        return _write_summary(private_root / "summary.json", {
+            "schema": SCORED_SUMMARY_SCHEMA,
+            "status": "candidate_or_environment_ambiguous",
+            "reason": "withheld_scorer_invalid_status",
+            "candidate_kind": "agent_trial",
+            "scored_eligible": True,
+            "incidence_eligible": True,
+            "score_valid": False,
+            "retry_required": None,
+            "adjudication_required": True,
+            "capture_feedback_status": provenance.get("capture_feedback_status"),
+            "joint_parity_pass": None,
+            "proposed_improvement_pass": None,
+            "run_id": provenance["run_id"],
+            "task_freeze_sha256": provenance["task_freeze_sha256"],
+            "final_tree_sha256": provenance["final_tree_sha256"],
+            "source_sha256": provenance["source_sha256"],
+            "binary_sha256": sha256(binary),
+            "public_raw_result_sha256": public_raw_sha,
+            "hidden_raw_result_sha256": sha256(hidden_result_path),
+            "withheld_evaluated": False,
+        })
     if (hidden_run["status"] == "completed") != (hidden_status == "pass"):
         raise RuntimeError("withheld scorer exit status contradicts its result; raw logs stay private")
     summary = aggregate_results(

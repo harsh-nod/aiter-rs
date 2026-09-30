@@ -314,10 +314,16 @@ def run_agent(args: argparse.Namespace) -> int:
     task_path = args.task.resolve()
     task = read_task(task_path)
     brokered = task["task_mode"] == "brokered_public_feedback"
+    if brokered:
+        from runs.gdr_native_optimization.boundary import LIVE_TASK_DIR, SCORED_TASK_DIR, validate_task
+
+        if task_path.parent not in {LIVE_TASK_DIR, SCORED_TASK_DIR}:
+            raise ValueError("brokered task must be a trusted frozen GDR revision")
+        validate_task(task_path.parent)
+        if task.get("scored_eligible") is not (task_path.parent == SCORED_TASK_DIR):
+            raise ValueError("brokered task eligibility differs from its revision")
     if args.unscored_preview and task.get("scored_eligible") is not False:
         raise ValueError("unscored preview requires scored_eligible=false")
-    if brokered and task.get("scored_eligible") is not False:
-        raise ValueError("live broker revision is not admitted for scored agents")
     if not args.dry_run and not args.unscored_preview:
         if task.get("scored_eligible") is not True:
             raise ValueError("task must explicitly be marked scored_eligible to launch an agent")
@@ -333,6 +339,10 @@ def run_agent(args: argparse.Namespace) -> int:
     expected_freeze = json.loads(args.freeze.read_text(encoding="utf-8"))
     if expected_freeze != actual_freeze:
         raise ValueError("task, prompt, or starter changed since freeze")
+    if brokered and task["scored_eligible"] is True and not args.dry_run:
+        from runs.gdr_native_optimization.boundary import validate_scored_admission
+
+        validate_scored_admission(task_path.parent, actual_freeze)
     if not args.replicate_id or args.replicate_id in {".", ".."} or any(c not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-" for c in args.replicate_id):
         raise ValueError("replicate_id must be a single safe path component")
     run_id = f"{task['task_id']}--{task['task_revision']}--{args.replicate_id}"
@@ -341,8 +351,8 @@ def run_agent(args: argparse.Namespace) -> int:
     feedback_private_root = getattr(args, "feedback_private_root", None)
     if brokered and not args.dry_run:
         repo = task_path.parents[3]
-        if not args.unscored_preview:
-            raise ValueError("brokered task currently supports unscored previews only")
+        if args.unscored_preview != (not task["scored_eligible"]):
+            raise ValueError("brokered capture mode differs from the frozen task eligibility")
         if feedback_config is None or feedback_private_root is None:
             raise ValueError("brokered task needs trusted remote config and private feedback root")
         feedback_config = feedback_config.resolve()
@@ -380,7 +390,7 @@ def run_agent(args: argparse.Namespace) -> int:
         "command": safe_command,
         "isolation": isolation,
         "run_purpose": "command_preview" if args.dry_run else (
-            "unscored_feedback_preview" if brokered else (
+            ("scored_trial_capture" if task["scored_eligible"] else "unscored_feedback_preview") if brokered else (
                 "unscored_preview" if args.unscored_preview else "scored_trial_capture"
             )
         ),
@@ -406,6 +416,8 @@ def run_agent(args: argparse.Namespace) -> int:
     result_dir.mkdir(mode=0o700 if brokered else 0o777, parents=not brokered, exist_ok=False)
     workspace = result_dir / "workspace"
     shutil.copytree(task_path.parent / task["starter_dir"], workspace, symlinks=False)
+    if brokered and task["scored_eligible"]:
+        workspace.chmod(0o700)
     prompt = (task_path.parent / task["prompt_file"]).read_text(encoding="utf-8")
     if brokered:
         feedback = ("Public-only feedback is available through `python3 /public-feedback.py correctness` "
@@ -424,7 +436,7 @@ def run_agent(args: argparse.Namespace) -> int:
     if brokered:
         from runs.gdr_native_optimization.live_feedback import LiveFeedbackBroker, RemotePublicScorer
 
-        scorer = RemotePublicScorer(feedback_config, feedback_private_root, run_id)
+        scorer = RemotePublicScorer(feedback_config, feedback_private_root, run_id, task_path.parent)
         broker = LiveFeedbackBroker(
             workspace, feedback_private_root, task_path.parent, scorer, snapshotter.capture
         )
@@ -452,6 +464,16 @@ def run_agent(args: argparse.Namespace) -> int:
                 file_descriptors.append(os.open(path, os.O_RDONLY))
             executable_command = [str(file_descriptors[int(item[4:-1])]) if item.startswith("<fd:") and item.endswith(">") else item for item in command]
             process = subprocess.Popen(executable_command, cwd=workspace, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=err, start_new_session=True, env=agent_env, pass_fds=tuple(file_descriptors))
+            if brokered and task["scored_eligible"]:
+                launch_path = result_dir / "agent-launch.json"
+                write_json_exclusive(launch_path, {
+                    "schema": "aiter-rs-agent-launch-v1",
+                    "run_id": run_id,
+                    "task_freeze_sha256": record["task_freeze_sha256"],
+                    "agent_pid": process.pid,
+                    "time_utc": datetime.now(timezone.utc).isoformat(),
+                })
+                launch_path.chmod(0o600)
         finally:
             for descriptor in file_descriptors:
                 os.close(descriptor)

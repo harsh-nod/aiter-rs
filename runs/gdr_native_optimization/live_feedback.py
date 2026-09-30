@@ -18,6 +18,7 @@ from typing import Callable
 
 from runs.gdr_native_optimization.boundary import (
     LIVE_TASK_DIR,
+    SCORED_TASK_DIR,
     RESPONSE_SCHEMA,
     process_request,
     public_container_command,
@@ -72,6 +73,9 @@ class LiveFeedbackBroker:
         known = {f"{number:04d}.json" for number in range(1, self.processed + 1)}
         self.unprocessed = sum(path.name not in known for path in self.requests.glob("*.json"))
         events = self.private_root / "feedback_events.jsonl"
+        status = ("candidate_timeout_or_environment_ambiguous"
+                  if any(name in {"PublicScoreTimeout", "TimeoutExpired"} for name in self.errors)
+                  else "complete" if not self.errors and not self.unprocessed else "protocol_error")
         return {
             "schema": "aiter-rs-gdr-live-feedback-summary-v1",
             "request_count": self.processed,
@@ -79,7 +83,7 @@ class LiveFeedbackBroker:
             "broker_error_classes": self.errors,
             "unprocessed_request_count": self.unprocessed,
             "private_event_log_sha256": sha256(events) if events.is_file() else None,
-            "status": "complete" if not self.errors and not self.unprocessed else "protocol_error",
+            "status": status,
         }
 
     def _run(self) -> None:
@@ -92,8 +96,13 @@ class LiveFeedbackBroker:
             try:
                 if self.capture_source is not None:
                     self.capture_source(f"feedback_request_{request_id:04d}")
-                process_request(self.workspace, self.private_root, request_id,
-                                self.score_public, self.task_dir)
+                response = process_request(self.workspace, self.private_root, request_id,
+                                           self.score_public, self.task_dir)
+                if response["status"] == "error":
+                    raw = json.loads((self.private_root / f"raw-{request_id:04d}.json").read_text())
+                    self.errors.append(raw.get("broker_error_class", "PublicScoreUnresolved"))
+                elif response["status"] == "candidate_timeout_or_environment_ambiguous":
+                    self.errors.append("PublicScoreTimeout")
             except Exception as exc:
                 self.errors.append(type(exc).__name__)
                 self._reject(request, request_id, exc)
@@ -132,8 +141,13 @@ _SAFE_HOST = re.compile(r"[A-Za-z0-9._-]+\Z")
 _RESULT_MARKER = re.compile(r"^AITERRS_PUBLIC_RESULT_SHA256=([0-9a-f]{64})$", re.MULTILINE)
 
 
+class PublicScoreTimeout(RuntimeError):
+    pass
+
+
 class RemotePublicScorer:
-    def __init__(self, config_path: Path, private_root: Path, run_id: str):
+    def __init__(self, config_path: Path, private_root: Path, run_id: str,
+                 task_dir: Path = LIVE_TASK_DIR):
         config_path = config_path.resolve()
         private_root = private_root.resolve()
         if not config_path.is_file() or config_path.is_relative_to(private_root):
@@ -156,7 +170,12 @@ class RemotePublicScorer:
             raise ValueError("public scorer image is missing")
         if not re.fullmatch(r"[A-Za-z0-9._-]+", run_id):
             raise ValueError("unsafe run ID")
+        task_dir = task_dir.resolve()
+        if task_dir not in {LIVE_TASK_DIR, SCORED_TASK_DIR}:
+            raise ValueError("trusted public broker task must be a frozen live revision")
+        validate_task(task_dir)
         self.config = config
+        self.task_dir = task_dir
         self.config_sha256 = sha256(config_path)
         self.private_root = private_root
         self.remote_run = f"{config['remote_root'].rstrip('/')}/{run_id}"
@@ -171,6 +190,8 @@ class RemotePublicScorer:
         if stderr_path is not None:
             _write_private(stderr_path, result.stderr)
         if result.returncode != 0:
+            if "AITERRS_PUBLIC_TIMEOUT" in result.stdout:
+                raise PublicScoreTimeout("trusted public scorer watchdog timed out")
             raise RuntimeError(f"trusted remote public scorer command failed with exit {result.returncode}")
         return result.stdout
 
@@ -197,7 +218,7 @@ class RemotePublicScorer:
             "--expected-repo-head", self.config["remote_repo_head"],
             "--aiter-source", self.config["remote_aiter"],
             "--host-gpu-report", self.config["remote_host_gpu_report"],
-            "--task-dir", f"{self.config['remote_repo']}/runs/tasks/gdr_native_optimization_v2",
+            "--task-dir", f"{self.config['remote_repo']}/runs/tasks/{self.task_dir.name}",
             "--request-root", remote_request,
             "--image", self.config["image"],
             "--kind", kind,
@@ -223,7 +244,7 @@ class RemotePublicScorer:
         if starter_hash(snapshot) != expected_tree:
             raise RuntimeError("public source changed after trusted remote scoring")
         raw = json.loads(local_raw.read_text(encoding="utf-8"))
-        task, _ = validate_task(LIVE_TASK_DIR)
+        task, _ = validate_task(self.task_dir)
         expected = {
             "schema": "aiter-rs-gdr-opt-public-raw-v1",
             "source_sha256": sha256(snapshot / "kernel.hip"),
@@ -256,15 +277,17 @@ def remote_score(args: argparse.Namespace) -> None:
         path.resolve() for path in (args.snapshot, args.repo, args.aiter_source,
                                     args.host_gpu_report, args.task_dir, args.request_root)
     )
-    if task_dir != repo / "runs/tasks/gdr_native_optimization_v2" or task_dir != LIVE_TASK_DIR:
+    if task_dir not in {LIVE_TASK_DIR, SCORED_TASK_DIR} or task_dir != repo / "runs/tasks" / task_dir.name:
         raise ValueError("remote task must be the pinned live revision in the trusted checkout")
     if request_root.is_relative_to(repo) or request_root.is_relative_to(aiter) or not snapshot.is_relative_to(request_root):
         raise ValueError("remote request must be private and separate from trusted source")
     if report.is_relative_to(request_root) or report.is_relative_to(repo):
         raise ValueError("host GPU attestation must be outside source and request mounts")
     task, _ = validate_task(task_dir)
-    if task["task_mode"] != "brokered_public_feedback" or task["scored_eligible"] is not False:
-        raise ValueError("remote public scorer requires the unscored live task")
+    if task["task_mode"] != "brokered_public_feedback" or (
+        task["scored_eligible"] is not (task_dir == SCORED_TASK_DIR)
+    ):
+        raise ValueError("remote public scorer requires a frozen live broker task")
     if subprocess.check_output(["git", "-c", f"safe.directory={repo}", "-C", str(repo),
                                 "rev-parse", "HEAD"], text=True, timeout=30).strip() != args.expected_repo_head:
         raise ValueError("remote trusted checkout differs from the session pin")
@@ -292,7 +315,10 @@ def remote_score(args: argparse.Namespace) -> None:
     if starter_hash(snapshot) != args.expected_snapshot_sha256:
         raise ValueError("remote public snapshot changed during scoring")
     result = output / "result.json"
-    if run["status"] == "timeout" or not result.is_file():
+    if run["status"] == "timeout":
+        print("AITERRS_PUBLIC_TIMEOUT", flush=True)
+        raise PublicScoreTimeout("remote public scorer watchdog timed out")
+    if not result.is_file():
         raise RuntimeError("remote public scorer did not write a bounded result")
     print(f"AITERRS_PUBLIC_RESULT_SHA256={sha256(result)}")
 

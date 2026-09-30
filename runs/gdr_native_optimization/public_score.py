@@ -114,8 +114,6 @@ def run_public(args) -> dict:
     )
     library = args.output / "libcandidate.so"
     command = compile_argv(args.snapshot, library, task)
-    build = subprocess.run(command, cwd=args.output, capture_output=True, text=True,
-                           timeout=180, check=False)
     raw = {
         "schema": "aiter-rs-gdr-opt-public-raw-v1",
         "source_sha256": source_hashes["kernel.hip"],
@@ -125,8 +123,18 @@ def run_public(args) -> dict:
         "public_spec_sha256": task["harness_spec_sha256"],
         "large_fixture_sha256": task["large_fixture_sha256"],
         "build_argv": ["hipcc", *task["build_flags"], "kernel.hip", "-o", "libcandidate.so"],
-        "build_returncode": build.returncode,
     }
+    try:
+        build = subprocess.run(command, cwd=args.output, capture_output=True, text=True,
+                               timeout=180, check=False)
+    except subprocess.TimeoutExpired:
+        raw.update({
+            "status": "candidate_timeout_or_environment_ambiguous",
+            "timeout_stage": "hipcc",
+            "visible_case_results": {}, "benchmark_bucket_results": {},
+        })
+        return raw
+    raw["build_returncode"] = build.returncode
     if task["task_mode"] == "brokered_public_feedback":
         raw["container_execution"] = task["container_execution"]
         raw["container_uid"] = os.getuid()
@@ -163,7 +171,20 @@ def run_public(args) -> dict:
         preflight_raw, _active_gpu_pids(preflight_raw), os.getpid(), "preflight",
     )
     plugin = importlib.import_module(spec["plugin"])
-    candidate = plugin.load_hip_candidate(library)
+    try:
+        candidate = plugin.load_hip_candidate(library)
+    except AttributeError as exc:
+        raw.update({
+            "status": "candidate_load_failed", "candidate_load_error": repr(exc),
+            "visible_case_results": {}, "benchmark_bucket_results": {},
+        })
+        return raw
+    except OSError as exc:
+        raw.update({
+            "status": "candidate_load_or_environment_ambiguous", "candidate_load_error": repr(exc),
+            "visible_case_results": {}, "benchmark_bucket_results": {},
+        })
+        return raw
     cases = spec["cases"] + [fixture]
     checked = [run_case(plugin, candidate, case) for case in cases]
     try:

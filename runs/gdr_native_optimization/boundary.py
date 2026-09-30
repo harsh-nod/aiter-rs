@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -13,6 +14,7 @@ from typing import Callable
 
 TASK_DIR = Path(__file__).resolve().parents[1] / "tasks/gdr_native_optimization_v1"
 LIVE_TASK_DIR = Path(__file__).resolve().parents[1] / "tasks/gdr_native_optimization_v2"
+SCORED_TASK_DIR = Path(__file__).resolve().parents[1] / "tasks/gdr_native_optimization_v3"
 SOURCE_FILES = {
     "kernel.hip",
     "gdr_decode_packed_bf16_abi.h",
@@ -86,19 +88,40 @@ def validate_task(task_dir: Path = TASK_DIR) -> tuple[dict, dict]:
     if _read(task_dir / "task.freeze.json") != freeze_payload(task_dir):
         raise ValueError("task/prompt/starter differs from frozen snapshot")
     starter = task_dir / "starter"
+    scored = False
     if task["task_mode"] == "no_feedback":
         if task["scored_eligible"] is not False:
             raise ValueError("prototype must remain unscored")
     elif task["task_mode"] == "brokered_public_feedback":
-        if task["scored_eligible"] is not False:
-            raise ValueError("live broker prototype must remain unscored")
+        if task["task_revision"] not in {
+            "native-opt-live-feedback-prototype-v2", "native-opt-live-feedback-scored-v3"
+        }:
+            raise ValueError("unknown live broker revision")
+        scored = task["task_revision"] == "native-opt-live-feedback-scored-v3"
+        if task["scored_eligible"] is not scored:
+            raise ValueError("live broker eligibility differs from task revision")
         if task.get("container_execution") != LIVE_CONTAINER_EXECUTION:
             raise ValueError("live scorer container execution differs from the freeze")
         helper = task_dir / task.get("feedback_helper_file", "")
         if not helper.is_file() or sha256(helper) != task.get("feedback_helper_sha256"):
             raise ValueError("agent-visible feedback helper differs from the freeze")
-        if contract.get("activation") != "live_broker_unscored_v2":
+        activation = "live_broker_scored_v3" if scored else "live_broker_unscored_v2"
+        if contract.get("activation") != activation:
             raise ValueError("live feedback contract has the wrong activation")
+        if scored:
+            expected_protocol = {
+                "denominator_unit": "all_launched_agent_sessions",
+                "score_source": "final_immutable_snapshot",
+                "private_scoring_phase": "post_agent_only",
+                "hidden_confidentiality": "nonadversarial_same_process",
+                "parity_max_latency_ratio_each": 1.05,
+                "max_relative_mad_each_side": 0.05,
+                "improvement_geomean_ratio": 0.95,
+            }
+            if contract.get("scored_protocol") != expected_protocol:
+                raise ValueError("scored GDR protocol differs from the freeze")
+            if contract.get("max_feedback_requests") != 3:
+                raise ValueError("scored GDR feedback cap differs from the freeze")
     else:
         raise ValueError("unknown GDR task mode")
     if task["visible_checks"] or task["hidden_checks"]:
@@ -121,6 +144,14 @@ def validate_task(task_dir: Path = TASK_DIR) -> tuple[dict, dict]:
     ):
         raise ValueError("public case commitment mismatch")
     spec = _read(starter / "public/spec.json")
+    if scored:
+        if contract.get("withheld_cases_sha256") != spec["withheld_cases_sha256"]:
+            raise ValueError("withheld matrix commitment differs from public spec")
+        limits = contract["benchmark_protocol"]
+        if (limits.get("max_latency_ratio_each") != 1.05 or
+                limits.get("max_relative_mad_each_side") != 0.05 or
+                limits.get("proposed_geomean_improvement_ratio") != 0.95):
+            raise ValueError("scored benchmark limits differ from the declared objectives")
     fixture = _read(starter / "public/large_fixture.json")
     ids = [case["id"] for case in spec["cases"]] + [fixture["case"]["id"], "default_stream_zero"]
     if ids != contract["visible_correctness_case_ids"] or not set(
@@ -130,6 +161,57 @@ def validate_task(task_dir: Path = TASK_DIR) -> tuple[dict, dict]:
     if fixture["case"]["visibility"] != "visible":
         raise ValueError("large fixture is not public")
     return task, contract
+
+
+def validate_scored_admission(task_dir: Path, freeze: dict) -> dict:
+    """Require a separately reviewed, committed exact-v3 GPU admission receipt."""
+    if task_dir.resolve() != SCORED_TASK_DIR:
+        raise ValueError("scored GDR admission is only defined for v3")
+    receipt_path = task_dir / "admission.json"
+    if receipt_path.is_symlink() or not receipt_path.is_file():
+        raise ValueError("v3 scored launch is blocked until GPU admission is committed")
+    repo = task_dir.parents[2]
+    relative = receipt_path.relative_to(repo).as_posix()
+    tracked = subprocess.run(
+        ["git", "-C", str(repo), "ls-files", "--error-unmatch", "--", relative],
+        capture_output=True, text=True, timeout=15, check=False,
+    )
+    dirty = subprocess.run(
+        ["git", "-C", str(repo), "status", "--porcelain", "--", relative],
+        capture_output=True, text=True, timeout=15, check=False,
+    )
+    if tracked.returncode != 0 or dirty.returncode != 0 or dirty.stdout.strip():
+        raise ValueError("v3 scored admission receipt must be committed and clean")
+    trusted_scopes = ["harness", "references", "runs/runner.py", "runs/gdr_native_optimization"]
+    revision = _read(task_dir / "task.json")["harness_revision"]
+    committed_diff = subprocess.run(
+        ["git", "-C", str(repo), "diff", "--quiet", revision, "HEAD", "--", *trusted_scopes],
+        capture_output=True, text=True, timeout=30, check=False,
+    )
+    worktree = subprocess.run(
+        ["git", "-C", str(repo), "status", "--porcelain", "--untracked-files=all", "--", *trusted_scopes],
+        capture_output=True, text=True, timeout=30, check=False,
+    )
+    if committed_diff.returncode != 0 or worktree.returncode != 0 or worktree.stdout.strip():
+        raise ValueError("v3 trusted scorer code differs from its pinned clean revision")
+    receipt = _read(receipt_path)
+    expected = {
+        "schema": "aiter-rs-gdr-v3-admission-v1",
+        "task_revision": "native-opt-live-feedback-scored-v3",
+        "task_freeze_sha256": hashlib.sha256(canonical(freeze)).hexdigest(),
+        "aiter_sha": _read(task_dir / "task.json")["aiter_sha"],
+        "host_gpu_report_sha256": _read(task_dir / "task.json")["host_gpu_report_sha256"],
+        "compiler_image_id": _read(task_dir / "task.json")["compiler_image_id"],
+        "status": "admitted",
+    }
+    if set(receipt) != set(expected) | {"public_smoke_result_sha256", "withheld_smoke_result_sha256"}:
+        raise ValueError("v3 GPU admission receipt has unexpected or missing fields")
+    if any(receipt.get(key) != value for key, value in expected.items()):
+        raise ValueError("v3 GPU admission receipt differs from the frozen task")
+    for key in ("public_smoke_result_sha256", "withheld_smoke_result_sha256"):
+        if not re.fullmatch(r"[0-9a-f]{64}", str(receipt.get(key, ""))):
+            raise ValueError("v3 GPU admission lacks reviewed public and withheld result hashes")
+    return receipt
 
 
 def validate_source_tree(root: Path, expected_fixed: dict[str, str] | None = None) -> dict[str, str]:
@@ -256,7 +338,11 @@ def sanitize_feedback(raw: dict, request_id: int, source_sha: str,
         "schema": RESPONSE_SCHEMA,
         "request_id": request_id,
         "source_sha256": source_sha,
-        "status": raw.get("status") if raw.get("status") in {"complete", "correctness_failed", "compile_failed", "environment_invalid"} else "error",
+        "status": raw.get("status") if raw.get("status") in {
+            "complete", "correctness_failed", "compile_failed", "candidate_load_failed",
+            "candidate_timeout_or_environment_ambiguous", "candidate_load_or_environment_ambiguous",
+            "environment_invalid",
+        } else "error",
         "visible_case_results": cases,
         "benchmark_bucket_results": clean_buckets,
         "raw_result_sha256": raw_sha,
@@ -305,7 +391,7 @@ def process_request(workspace: Path, private_results: Path, request_id: int,
         raw = score_public(snapshot, data["kind"])
     except Exception as exc:
         raw = {
-            "status": "error", "error": repr(exc),
+            "status": "error", "error": repr(exc), "broker_error_class": type(exc).__name__,
             "visible_case_results": {}, "benchmark_bucket_results": {},
         }
     if validate_source_tree(snapshot) != source_hashes:
