@@ -45,8 +45,32 @@ and final tree SHA256
 `1c15d1300e9670b4c47b8c9d91f25220aa75a5b5d69a9d93648c97c2027f17d5`.
 It removed the gate-load change, restored seed Q/K conversion and workgroup
 layout, and changed the invalid-index path so tile zero writes all V blocks.
-The final source is distinct from every live-scored snapshot; its correctness
-and performance remain **unknown** pending separate trusted replay.
+The final source is distinct from every live-scored snapshot. At capture close,
+its correctness and performance were unknown; only the separate trusted replay
+below evaluated this exact final version.
+
+## Post-agent replay
+
+After credential/source review and a SHA-verified private transfer, the final
+snapshot was validated again on the clean remote checkout. The trusted
+public stage compiled it to binary SHA256
+`5d55923c427d9a4352e4b0b5d664f643662e82d9f057bb6bb5a2803037794399`
+and passed **6/6 visible cases**. A separate network-disabled withheld stage
+reused that exact binary and passed **4/4 withheld cases**. This is a
+nonadversarial correctness observation, not a scored incidence result.
+
+All three final graph buckets were noise-qualified and passed the 1.05
+non-inferiority gate: valid 0.996620, strided 1.000364, large 1.025296.
+The geomean ratio was 1.007347, so the proposed 0.95 improvement gate did
+**not** pass. AITER/candidate relative MAD pairs were 0.001427/0.001785
+(valid), 0.001638/0.001273 (strided), and 0.003325/0.005569 (large).
+Public raw result SHA256 was
+`54c1d7acd726e8441d278ca6287db2836132ecdf9dfd0cdafc91799f3b6681da`;
+withheld raw result SHA256 was
+`f437ea94a13522ef0fd49e58d6cd4676272376124090ad909657ee681cb5bf5f`.
+Raw cases and latency samples remain private. The scorer reported
+`exploratory_replay_complete`, `incidence_eligible=false`, and
+`agent_parity_claim=false`.
 
 The private raw trace and snapshots were scanned for credential/private-host
 patterns and stayed outside the repository. Both the capture and feedback
