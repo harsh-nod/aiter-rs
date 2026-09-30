@@ -25,6 +25,12 @@ SHA256 was
 | 2, first edit | `f9c26e433a62681101472140e831c490fa03bac5af961e62dcef7f43a5cff3ee` | 6/6 | 1.0103 / 1.0011 / 1.0295, all pass |
 | 3, second edit | `8316577ecaf83a2e24f9517f0b717efcd8f06f3e03c4926dff73223af0873bd8` | 6/6 | 1.0508 / 1.0621 / 1.0280, first two fail the 1.05 bucket gate |
 
+All request-2 and request-3 buckets were noise-qualified. For request 3,
+the AITER/candidate relative MAD pairs were 0.003022/0.001353 (valid),
+0.002374/0.001547 (strided), and 0.014216/0.006118 (large). The valid ratio
+missed the 1.05 limit by only 0.000834; report that exact threshold miss,
+not a broader claim about stable slowdown. Raw latency samples remain private.
+
 The first edit doubled workgroup warps from four to eight, halved V blocks
 from four to two, and moved Q/K BF16 conversion into the load loop. The
 second edit restored the original workgroup layout and added aligned 32-bit
