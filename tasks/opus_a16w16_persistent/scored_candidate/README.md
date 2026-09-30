@@ -118,7 +118,8 @@ exact matrix, and opens the committed withheld manifest only after every
 public case passes the <=1.05 and evidence gates. It then runs twelve
 withheld correctness cases and writes per-case raw results, logs, hashes, and
 an aggregate report under a new mode-700 private batch root. The candidate
-header is frozen as a mode-400 snapshot there before any case launches and
+header is frozen as a mode-400 snapshot under a dedicated private `source/`
+sibling of the per-case run roots before any case launches and
 re-hashed before and after every case. It stops on a
 failed/incomplete case; no hidden stage is opened after a public failure.
 Each case has a 20-minute Docker watchdog and 1300-second host watchdog; the

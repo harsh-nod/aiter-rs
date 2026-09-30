@@ -92,7 +92,9 @@ def run_batch(args, *, run_case=_run_case) -> dict:
               "task_sha256": sha256(HERE / "task.json"), "candidate_header_sha256": header_sha,
               "public_completed": 0, "withheld_completed": 0, "cases": [],
               "status": "running", "scored_eligible": False}
-    snapshot = root / "candidate-header.cuh"
+    source_root = root / "source"
+    source_root.mkdir(mode=0o700)
+    snapshot = source_root / "candidate-header.cuh"
     started = time.monotonic()
 
     def record_case(stage: str, case: dict, case_root: Path, exit_code: int, elapsed: float) -> None:
