@@ -33,15 +33,23 @@ contain commitments and sanitized aggregates.
   (1.0623x, then 1.0725x in a fresh repeat). These are agent-authored
   performance regressions on one optimization task, but **unscored previews**
   outside the incidence denominator, with no isolated source-level cost cause.
+- A separate [GDR live-feedback preview](agent-trials/gdr-native-live-feedback-preview-001.md)
+  used three agent-visible public benchmark requests. All tested source
+  snapshots passed visible correctness; the third had two noise-qualified
+  latency-ratio misses (1.0508 and 1.0621). The agent then submitted a
+  distinct, untested final source. Post-agent replay passed 6/6 public and
+  4/4 withheld correctness and all three public non-inferiority buckets, but
+  missed the separate 0.95 geomean improvement target (ratio 1.007347).
+  This is **one unscored preview**, not an incidence observation or a new type.
 
 ## Analyst and AITER controls
 
 | Track | Current evidence | Admission status |
 | --- | --- | --- |
-| GDR decode | Naive HIP passed public correctness but was 5.76-5.85x slower under repeatable graph replay. A source-preserving AITER-derived HIP ABI seed passed 8/8 public+withheld correctness. [Profiler and stability controls](../tasks/gdr_native_optimization/PROFILER_STABILITY_RECEIPT.md) confirmed one same-symbol, same-geometry dispatch per side in three public buckets and two fresh graph sessions within 5% of AITER. The [public-only scorer smoke](../runs/tasks/gdr_native_optimization_v1/PUBLIC_SEED_SMOKE.md) passed six visible checks and three parity buckets. The later host-owned replay seed passed all public cases and buckets in its separate environment. | Credible HIP parity seed and three exploratory no-feedback agent replays. A GDR-specific post-agent hidden replay exists, but no live agent feedback broker, frozen scored environment, or scored agent attempt. The seed is an answer key for optimization, not blind from-spec trials. |
+| GDR decode | Naive HIP passed public correctness but was 5.76-5.85x slower under repeatable graph replay. A source-preserving AITER-derived HIP ABI seed passed 8/8 public+withheld correctness. [Profiler and stability controls](../tasks/gdr_native_optimization/PROFILER_STABILITY_RECEIPT.md) confirmed one same-symbol, same-geometry dispatch per side in three public buckets and two fresh graph sessions within 5% of AITER. The [public-only live-broker seed smoke](2026-09-29-gdr-live-feedback-admission.md) passed 6/6 visible checks, and one real live-feedback agent preview completed with separate public and withheld replay. | Credible HIP parity seed; three exploratory no-feedback and one live-feedback agent preview. The broker works for the bounded public loop, but its v2 task is deliberately unscored. A new scored freeze and review of same-process hidden-scorer confidentiality remain. The seed is an answer key for optimization, not blind from-spec trials. |
 | MHC fused post/pre | Guarded analyst HIP passed 9/9 cases, but graph replay was 20-106x slower than AITER. | No credible HIP parity seed; unscored. |
 | Sparse prefill | Analyst HIP passed 5 public and 4 withheld correctness cases. Read-only post-graph verification passed, but two public graph buckets were 9.97x and 11.86x slower. | No credible HIP parity seed; unscored. |
-| OPUS persistent A16W16 GEMM | Three original exact-kid cases passed the independent Torch oracle and the [source-equivalent standalone HIP adapter](../tasks/opus_a16w16_persistent/FEASIBILITY.md). Eight full-K public cases then passed guarded multi-step correctness and one-session [graph control](../tasks/opus_a16w16_persistent/ADVERSARIAL_GRAPH_FEASIBILITY.md) at 0.9953-1.0244 adapter/AITER. A random-input partial-K pretrial exposed an AITER-only [padding-dependent correctness defect](../tasks/opus_a16w16_persistent/K_TAIL_REPRO.md), independently reproduced and filed as [ROCm/aiter #5954](https://github.com/ROCm/aiter/issues/5954). A stream-zero adapter bug was caught before launch; neither it nor the AITER finding is a scored agent mistake. | Plausible source-preserving route for the eight full-K cases only. Partial-K excluded pending upstream fix and re-admission. No hidden matrix, frozen agent optimization task, or agent trajectory. |
+| OPUS persistent A16W16 GEMM | Three original exact-kid cases passed the independent Torch oracle and the [source-equivalent standalone HIP adapter](../tasks/opus_a16w16_persistent/FEASIBILITY.md). Eight full-K public cases passed guarded correctness and two independent [graph-control sessions](../tasks/opus_a16w16_persistent/scored_candidate/SECOND_SESSION.md), with second-session adapter/AITER ratios 0.97739-1.01087. An unchanged-header [production `opus_bmm` one-case control](../tasks/opus_a16w16_persistent/scored_candidate/PRODUCTION_SEED_SMOKE.md) passed independent six-step oracle/guards, exact persistent dispatch, and paired graph timing at 0.983445 candidate/AITER. The [draft task](../tasks/opus_a16w16_persistent/scored_candidate/README.md) freezes eight full-K public cases and a committed off-repo twelve-case withheld matrix. Partial-K remains excluded after the AITER-only [padding-dependent defect](../tasks/opus_a16w16_persistent/K_TAIL_REPRO.md) filed as [ROCm/aiter #5954](https://github.com/ROCm/aiter/issues/5954). | Plausible source-preserving route for the eight full-K cases only. The one-case production control is not all-eight parity. Full production matrix pending; `scored_eligible=false`, zero OPUS agent trajectories. |
 | TopK long-row | Pinned FlyDSL route matched an independent oracle on 20 calls. | Not a HIP pilot without a parity adapter. |
 
 The separate AITER GDR `scale=NaN` validation bypass is tracked in the
@@ -49,7 +57,11 @@ The separate AITER GDR `scale=NaN` validation bypass is tracked in the
 an upstream-wrapper finding, **not** an agent-written-kernel mistake. The
 [fe2o3 IR control](2026-09-29-fe2o3-wave-ir-gap.md) rejects an explicit
 partial-lane collective claim but accepts a false full-wave claim inside a
-lane-divergent branch; this is not an end-to-end Rust-source proof.
+lane-divergent branch; this is not an end-to-end Rust-source proof. The
+[paired `gfx942` source check](../cases/fe2o3/source_wave_participation/README.md)
+found both divergent and uniform safe-collective variants typecheck, while
+the current Wave64 source-to-KIR route is retired. That is an unsupported
+source-verification path, not a demonstrated fe2o3 catch or gfx950 result.
 
 ## Scale and next gates
 
@@ -58,11 +70,12 @@ The initial 36-trajectory pilot has six captures, all on one task. The
 configuration hints, not 10,000 distinct vetted HIP challenge types. Do not
 inflate type count with shape rows, repeated attempts, or AITER-only audits.
 
-Next: connect the GDR public broker and freeze a scored environment/private
-replay protocol before any **scored** attempt; the three exploratory captures
-remain outside the incidence denominator. For megakernels, freeze a hidden
-matrix and clean-JIT source-overlay task for the eight supported full-K OPUS
-persistent cases, with a second independent performance session. The
-standalone adapter is only a source-equivalent control.
+Next: freeze a new scored GDR revision only after reviewing the live-broker
+preview, the exact environment, and the nonadversarial native hidden-scoring
+threat model; all four GDR exploratory captures remain outside the incidence
+denominator. For megakernels, complete the staged eight-public/twelve-withheld
+production-overlay gate before any scored OPUS attempt. The standalone adapter
+is only a source-equivalent control, and the single production bucket is not
+an all-case parity result.
 Keep FlyDSL-only and binary-only megakernel paths outside source-level HIP
 agent-error incidence until a legitimate same-boundary route exists.
