@@ -2,8 +2,12 @@
 
 Pinned AITER revision: `868ccf62a0bcad3aa47f92728340ccb37ed4fb39`.
 Links below target that immutable tree. These are six **candidate operator
-families**, not six frozen parity-ready agent tasks. None has yet been run or
-benchmarked on `mi350-2`; no independent agent trajectory exists. All scored
+families**, not six frozen parity-ready agent tasks. This table is the original
+selection shortlist, not a current admission roster: the MXFP4 Even task now
+has six scored agent captures on one contract; GDR has four unscored agent
+previews and a gated v3 scored-task freeze; the listed megakernel families
+have no scored agent runs. The current evidence and exclusions are in the
+[progress ledger](../results/2026-09-29-swarm-progress.md). All scored
 implementations must be HIP. Before admitting a task, the harness must
 capture the actual dispatch path, independent oracle result, AITER latency
 distribution, exact GPU SKU and software stack, and a credible HIP parity
